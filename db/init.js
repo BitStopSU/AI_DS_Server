@@ -63,6 +63,7 @@ export function getDb() {
     ["1572636864962240701", "staf_stats"],
     ["1572636864962240701", "top_veref"],
     ["1572636864962240701", "top_verf"],
+    ["1572636864962240701", "stafftable"],
   ];
   const insertPermission = db.prepare(`
     INSERT OR IGNORE INTO role_command_permissions (role_id, command)
@@ -73,7 +74,8 @@ export function getDb() {
   const categoryPermissions = [
     ["owner", "verf"], ["owner", "achen"], ["owner", "clear"],
     ["owner", "staf_profile"], ["owner", "staf_stats"], ["owner", "top_veref"],
-    ["staff", "staf_profile"], ["staff", "staf_stats"], ["staff", "top_veref"],
+    ["owner", "stafftable"],
+    ["staff", "staf_profile"], ["staff", "staf_stats"], ["staff", "top_veref"], ["staff", "stafftable"],
     ["support", "verf"],
     ["moderator", "achen"], ["moderator", "clear"],
   ];

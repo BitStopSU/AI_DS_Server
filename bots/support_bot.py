@@ -189,6 +189,73 @@ async def top_veref(interaction: discord.Interaction):
 async def top_verf(interaction: discord.Interaction):
     await send_verification_top(interaction)
 
+def staff_branch(role):
+    name = role.name.lower()
+    if role.id == ROLE_OWNER:
+        return "Стафф Админ"
+    if role.id == ROLE_STAFF:
+        return "Общий стаф"
+    if role.id == ROLE_SUPPORT:
+        return "Support"
+    if role.id == ROLE_MODERATOR:
+        return "Moderator"
+    if any(word in name for word in ("administrator", "администратор", "админ", "owner", "владел", "developer", "разработ")):
+        return "Стафф Админ"
+    if any(word in name for word in ("moderator", "модератор", "куратор", "curator")):
+        return "Moderator"
+    if any(word in name for word in ("support", "саппорт", "security")):
+        return "Support"
+    if any(word in name for word in ("control", "контрол")):
+        return "Control"
+    if any(word in name for word in ("staff", "персонал", "стaf")):
+        return "Общий стаф"
+    return None
+
+@bot.tree.command(name="stafftable", description="Показать структуру персонала по веткам")
+async def stafftable(interaction: discord.Interaction):
+    if not can_staff(interaction.user, "stafftable"):
+        return await interaction.response.send_message("❌ Нет прав.", ephemeral=True)
+
+    branch_order = ("Стафф Админ", "Moderator", "Support", "Общий стаф", "Control")
+    branches = {name: {} for name in branch_order}
+
+    for member in interaction.guild.members:
+        if member.bot:
+            continue
+        assigned_roles = [
+            role for role in member.roles
+            if not role.is_default() and staff_branch(role)
+        ]
+        if not assigned_roles:
+            continue
+        highest_role = max(assigned_roles, key=lambda role: role.position)
+        branch = staff_branch(highest_role)
+        if not branch:
+            continue
+        branches[branch].setdefault(highest_role.name, []).append(member)
+
+    lines = [f"Состав персонала • все ветки", f"Участников: {sum(sum(len(items) for items in roles.values()) for roles in branches.values())}"]
+    for branch in branch_order:
+        role_groups = branches[branch]
+        if not role_groups:
+            continue
+        lines.append("")
+        lines.append(f"{branch} • {sum(len(items) for items in role_groups.values())}")
+        def role_position(item):
+            matched = next((role for role in interaction.guild.roles if role.name == item[0]), None)
+            return matched.position if matched else -1
+
+        ordered_groups = sorted(role_groups.items(), key=role_position, reverse=True)
+        for role_name, members in ordered_groups:
+            lines.append(f"├─ {role_name}")
+            sorted_members = sorted(members, key=lambda member: member.display_name.lower())
+            for index, member in enumerate(sorted_members):
+                prefix = "└─" if index == len(sorted_members) - 1 else "├─"
+                lines.append(f"│  {prefix} {member.mention}")
+
+    embed = discord.Embed(title="Состав персонала • все ветки", description="\n".join(lines)[:4096], color=discord.Color.blurple())
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
 @bot.tree.command(name="verf", description="Верифицировать пользователя")
 @app_commands.describe(member="Кого верифицируем", gender="Пол")
 @app_commands.choices(gender=[app_commands.Choice(name="Мальчик", value="boy"), app_commands.Choice(name="Девочка", value="girl")])
