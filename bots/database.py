@@ -16,6 +16,9 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS mod_voice_time (
         user_id INTEGER, guild_id INTEGER, seconds INTEGER DEFAULT 0, 
         PRIMARY KEY (user_id, guild_id))''')
+    c.execute('''CREATE TABLE IF NOT EXISTS support_voice_time (
+        user_id INTEGER, guild_id INTEGER, seconds INTEGER DEFAULT 0,
+        PRIMARY KEY (user_id, guild_id))''')
     conn.commit()
     conn.close()
 

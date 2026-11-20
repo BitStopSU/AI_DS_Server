@@ -59,6 +59,10 @@ export function getDb() {
     ["1572636865448775816", "verf"],
     ["1572636865448775818", "achen"],
     ["1572636865448775818", "clear"],
+    ["1572636864962240701", "staf_profile"],
+    ["1572636864962240701", "staf_stats"],
+    ["1572636864962240701", "top_veref"],
+    ["1572636864962240701", "top_verf"],
   ];
   const insertPermission = db.prepare(`
     INSERT OR IGNORE INTO role_command_permissions (role_id, command)

@@ -23,6 +23,7 @@
     <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="bots">🤖 Боты</a>
     <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="logs">📜 Логи</a>
     <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="aichat">💬 AI-чат</a>
+    <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="roles">🛡️ Роли и команды</a>
     <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="settings">⚙️ Настройки</a>
   </nav>
 </aside>
@@ -66,41 +67,49 @@
     </div>
   </section>
 
+  <!-- РОЛИ И КОМАНДЫ -->
+  <section id="tab-roles" class="tab-content hidden">
+    <h2 class="text-2xl font-bold mb-6">Роли и команды</h2>
+    <div class="max-w-5xl space-y-4">
+      <div class="bg-gray-800 p-4 rounded-xl space-y-3 text-sm">
+        <div class="flex justify-between items-center">
+          <h3 class="font-semibold">Категории ролей</h3>
+          <button type="button" onclick="addRoleCategory()" class="bg-indigo-700 hover:bg-indigo-600 px-3 py-1 rounded">+ Категория</button>
+        </div>
+        <div id="role-categories" class="space-y-2"></div>
+      </div>
+
+      <div class="bg-gray-800 p-4 rounded-xl text-sm overflow-x-auto">
+        <table class="w-full text-left min-w-[720px]">
+          <thead class="text-xs text-gray-400">
+            <tr>
+              <th class="py-2 pr-3">Роль Discord</th>
+              <th class="py-2 pr-3">Категория</th>
+              <th class="py-2 px-2">/verf</th>
+              <th class="py-2 px-2">/achen</th>
+              <th class="py-2 px-2">/clear</th>
+              <th class="py-2 px-2">/staf_profile</th>
+              <th class="py-2 px-2">/staf_stats</th>
+              <th class="py-2 px-2">/top_veref</th>
+            </tr>
+          </thead>
+          <tbody id="role-manager-rows"></tbody>
+        </table>
+        <button type="button" onclick="saveRoleManager()" class="mt-4 bg-green-700 hover:bg-green-600 px-3 py-2 rounded">Сохранить роли и команды</button>
+      </div>
+    </div>
+  </section>
+
   <!-- НАСТРОЙКИ -->
   <section id="tab-settings" class="tab-content hidden">
     <h2 class="text-2xl font-bold mb-6">Настройки</h2>
     <div class="max-w-2xl space-y-4">
       
-      <!-- ID Каналов и Ролей -->
+      <!-- ID Каналов -->
       <div class="bg-gray-800 p-4 rounded-xl space-y-2 text-sm">
-        <h3 class="font-semibold mb-2">Каналы и роли</h3>
+        <h3 class="font-semibold mb-2">Каналы</h3>
         <div><label class="text-gray-400 text-xs">Канал запросов</label><input type="text" id="input-request" class="w-full bg-gray-900 rounded px-3 py-2 mt-1"></div>
         <div><label class="text-gray-400 text-xs">Канал логов</label><input type="text" id="input-logs" class="w-full bg-gray-900 rounded px-3 py-2 mt-1"></div>
-        <div><label class="text-gray-400 text-xs">Роль доступ</label><input type="text" id="input-role" class="w-full bg-gray-900 rounded px-3 py-2 mt-1"></div>
-      </div>
-
-      <!-- Управление ролями -->
-      <div class="bg-gray-800 p-4 rounded-xl space-y-3 text-sm">
-        <div class="flex justify-between items-center">
-          <h3 class="font-semibold">Роли и команды</h3>
-          <button type="button" onclick="addRoleCategory()" class="bg-indigo-700 hover:bg-indigo-600 px-3 py-1 rounded">+ Категория</button>
-        </div>
-        <div id="role-categories" class="space-y-2"></div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left">
-            <thead class="text-xs text-gray-400">
-              <tr>
-                <th class="py-2 pr-3">Роль Discord</th>
-                <th class="py-2 pr-3">Категория</th>
-                <th class="py-2 px-2">/verf</th>
-                <th class="py-2 px-2">/achen</th>
-                <th class="py-2 px-2">/clear</th>
-              </tr>
-            </thead>
-            <tbody id="role-manager-rows"></tbody>
-          </table>
-        </div>
-        <button type="button" onclick="saveRoleManager()" class="bg-green-700 hover:bg-green-600 px-3 py-2 rounded">Сохранить роли и команды</button>
       </div>
 
       <!-- API Ключи -->
@@ -166,6 +175,7 @@
       document.getElementById('tab-' + item.dataset.tab).classList.remove('hidden');
       if (item.dataset.tab === 'modules') loadModules();
       if (item.dataset.tab === 'bots') loadBots();
+      if (item.dataset.tab === 'roles') loadRoleManager();
       if (item.dataset.tab === 'settings') loadSettings();
     });
   });
@@ -285,14 +295,12 @@
     
     document.getElementById('input-request').value = s.request_channel_id || '';
     document.getElementById('input-logs').value = s.log_channel_id || '';
-    document.getElementById('input-role').value = s.allowed_role_id || '';
     
     document.getElementById('input-provider').value = s.default_provider || 'openai';
     document.getElementById('input-openai').value = s.openai_key || '';
     document.getElementById('input-anthropic').value = s.anthropic_key || '';
     document.getElementById('input-deepseek').value = s.deepseek_key || '';
     document.getElementById('input-gemini').value = s.gemini_key || '';
-    await loadRoleManager();
   }
 
   async function loadRoleManager() {
@@ -334,6 +342,9 @@
           <td class="py-2 px-2 text-center"><input type="checkbox" data-command="verf" ${checked('verf')}></td>
           <td class="py-2 px-2 text-center"><input type="checkbox" data-command="achen" ${checked('achen')}></td>
           <td class="py-2 px-2 text-center"><input type="checkbox" data-command="clear" ${checked('clear')}></td>
+          <td class="py-2 px-2 text-center"><input type="checkbox" data-command="staf_profile" ${checked('staf_profile')}></td>
+          <td class="py-2 px-2 text-center"><input type="checkbox" data-command="staf_stats" ${checked('staf_stats')}></td>
+          <td class="py-2 px-2 text-center"><input type="checkbox" data-command="top_veref" ${checked('top_veref')}></td>
         </tr>
       `;
     }).join('');
@@ -388,7 +399,6 @@
     const data = { 
       request_channel_id: document.getElementById('input-request').value, 
       log_channel_id: document.getElementById('input-logs').value, 
-      allowed_role_id: document.getElementById('input-role').value,
       
       default_provider: document.getElementById('input-provider').value,
       openai_key: document.getElementById('input-openai').value,
