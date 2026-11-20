@@ -57,19 +57,29 @@ export async function startWebServer(client, getGuild) {
   });
 
   // БОТЫ
-  app.get("/api/bots", (req, res) => res.json(getDb().prepare("SELECT id, name, script_path, status, pid, auto_start, last_error FROM bots").all()));
+  app.get("/api/bots", (req, res) => res.json(getDb().prepare(
+    "SELECT id, name, script_path, status, pid, auto_start, last_error, token_encrypted IS NOT NULL AS has_token FROM bots"
+  ).all()));
   
   // Загрузка файла и добавление бота
   app.post("/api/bots/upload", upload.single("script"), (req, res) => {
     try {
       const { id, name, token, auto_start } = req.body;
-      const script_path = req.file ? req.file.filename : null;
+      const existing = getDb().prepare("SELECT * FROM bots WHERE id = ?").get(id);
+      const script_path = req.file ? req.file.filename : existing?.script_path;
       
       if (!id || !name || !script_path) return res.status(400).json({ error: "Заполните все поля и прикрепите файл" });
 
-      const token_encrypted = token ? encrypt(token) : null;
-      getDb().prepare("INSERT OR REPLACE INTO bots (id, name, script_path, token_encrypted, auto_start) VALUES (?, ?, ?, ?, ?)")
-        .run(id, name, script_path, token_encrypted, auto_start === 'true' ? 1 : 0);
+      const token_encrypted = token ? encrypt(token) : existing?.token_encrypted;
+      getDb().prepare(`
+        INSERT INTO bots (id, name, script_path, token_encrypted, auto_start)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          name = excluded.name,
+          script_path = excluded.script_path,
+          token_encrypted = excluded.token_encrypted,
+          auto_start = excluded.auto_start
+      `).run(id, name, script_path, token_encrypted, auto_start === 'true' ? 1 : 0);
       
       res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }

@@ -38,7 +38,7 @@
   <section id="tab-bots" class="tab-content hidden">
     <div class="flex justify-between items-center mb-6">
       <h2 class="text-2xl font-bold">Боты</h2>
-      <button onclick="document.getElementById('addBotModal').classList.remove('hidden')" class="bg-indigo-600 px-4 py-2 rounded-lg text-sm">+ Добавить</button>
+      <button onclick="openAddBotModal()" class="bg-indigo-600 px-4 py-2 rounded-lg text-sm">+ Добавить</button>
     </div>
     <div class="grid gap-4 max-w-4xl" id="bots-container"></div>
   </section>
@@ -108,7 +108,7 @@
 <!-- МОДАЛКА ДОБАВЛЕНИЯ БОТА -->
 <div id="addBotModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
   <div class="bg-gray-800 p-6 rounded-xl w-96 space-y-3 text-sm">
-    <h3 class="font-bold text-lg">Добавить бота</h3>
+    <h3 id="bot-modal-title" class="font-bold text-lg">Добавить бота</h3>
     <input type="text" id="bot-id" placeholder="ID (например mod)" class="w-full bg-gray-900 p-2 rounded">
     <input type="text" id="bot-name" placeholder="Имя (Модератор)" class="w-full bg-gray-900 p-2 rounded">
     
@@ -125,8 +125,8 @@
     </div>
 
     <div class="flex gap-2 justify-end mt-4">
-      <button onclick="document.getElementById('addBotModal').classList.add('hidden')" class="px-3 py-1 bg-gray-700 rounded">Отмена</button>
-      <button onclick="addBot()" class="px-3 py-1 bg-indigo-600 rounded">Добавить</button>
+      <button onclick="closeBotModal()" class="px-3 py-1 bg-gray-700 rounded">Отмена</button>
+      <button id="bot-modal-submit" onclick="addBot()" class="px-3 py-1 bg-indigo-600 rounded">Добавить</button>
     </div>
   </div>
 </div>
@@ -164,6 +164,8 @@
   }
 
   // БОТЫ
+  let editingBotId = null;
+
   async function loadBots() {
     const res = await fetch('/api/bots');
     const bots = await res.json();
@@ -171,27 +173,67 @@
       <div class="bg-gray-800 p-4 rounded-xl mb-3">
         <div class="flex justify-between items-center mb-3">
           <h3 class="font-semibold">${b.name} (${b.script_path})</h3>
-          <span class="text-xs ${b.status === 'running' ? 'text-green-400' : 'text-red-400'}">${b.status}</span>
+          <span class="text-xs ${b.status === 'running' ? 'text-green-400' : 'text-red-400'}">${b.status}${b.last_error ? `: ${b.last_error}` : ''}</span>
         </div>
+        <p class="text-xs text-gray-400 mb-3">Токен: ${b.has_token ? 'задан' : 'не задан'}</p>
         <div class="flex gap-2">
           <button onclick="botAct('${b.id}', 'start')" class="bg-green-700 px-3 py-1 rounded">Запустить</button>
           <button onclick="botAct('${b.id}', 'stop')" class="bg-red-700 px-3 py-1 rounded">Остановить</button>
+          <button onclick="editBot('${b.id}', '${b.name.replaceAll("'", "\\'")}','${b.script_path}','${b.auto_start}')" class="bg-indigo-700 px-3 py-1 rounded">Редактировать</button>
         </div>
       </div>
     `).join('') || '<div class="text-gray-500">Ботов пока нет. Добавьте первого!</div>';
   }
-  async function botAct(id, act) { await fetch(`/api/bots/${id}/${act}`, {method:'POST'}); setTimeout(loadBots, 1000); }
+  async function botAct(id, act) {
+    const res = await fetch(`/api/bots/${id}/${act}`, {method:'POST'});
+    const data = await res.json();
+    if (!res.ok || data.ok === false) alert(data.error || data.reason || 'Операция не выполнена');
+    setTimeout(loadBots, 500);
+  }
+
+  function editBot(id, name, scriptPath, autoStart) {
+    editingBotId = id;
+    document.getElementById('bot-modal-title').innerText = 'Редактировать бота';
+    document.getElementById('bot-modal-submit').innerText = 'Сохранить';
+    document.getElementById('bot-id').value = id;
+    document.getElementById('bot-id').readOnly = true;
+    document.getElementById('bot-name').value = name;
+    document.getElementById('bot-token').value = '';
+    document.getElementById('bot-token').placeholder = 'Новый токен (оставьте пустым для сохранения)';
+    document.getElementById('bot-auto').checked = autoStart === '1';
+    document.getElementById('bot-file').value = '';
+    document.getElementById('addBotModal').classList.remove('hidden');
+  }
+
+  function closeBotModal() {
+    editingBotId = null;
+    document.getElementById('addBotModal').classList.add('hidden');
+  }
+
+  function openAddBotModal() {
+    editingBotId = null;
+    document.getElementById('bot-modal-title').innerText = 'Добавить бота';
+    document.getElementById('bot-modal-submit').innerText = 'Добавить';
+    document.getElementById('bot-id').value = '';
+    document.getElementById('bot-id').readOnly = false;
+    document.getElementById('bot-name').value = '';
+    document.getElementById('bot-token').value = '';
+    document.getElementById('bot-token').placeholder = 'Токен Discord';
+    document.getElementById('bot-auto').checked = false;
+    document.getElementById('bot-file').value = '';
+    document.getElementById('addBotModal').classList.remove('hidden');
+  }
   
   async function addBot() {
     const fileInput = document.getElementById('bot-file');
-    if (fileInput.files.length === 0) return alert('Выберите файл бота (.py)');
+    if (!editingBotId && fileInput.files.length === 0) return alert('Выберите файл бота (.py)');
 
     const formData = new FormData();
     formData.append('id', document.getElementById('bot-id').value);
     formData.append('name', document.getElementById('bot-name').value);
     formData.append('token', document.getElementById('bot-token').value);
     formData.append('auto_start', document.getElementById('bot-auto').checked);
-    formData.append('script', fileInput.files[0]);
+    if (fileInput.files[0]) formData.append('script', fileInput.files[0]);
 
     const res = await fetch('/api/bots/upload', { method: 'POST', body: formData });
 

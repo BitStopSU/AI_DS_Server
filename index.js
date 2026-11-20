@@ -58,4 +58,11 @@ client.on(Events.MessageCreate, async (message) => {
   }
 });
 
-client.login(CONFIG.DISCORD_TOKEN);
+if (!CONFIG.DISCORD_TOKEN) {
+  console.error("❌ DISCORD_TOKEN не задан в файле .env");
+} else {
+  client.login(CONFIG.DISCORD_TOKEN).catch((err) => {
+    console.error("❌ Не удалось войти в Discord:", err.message);
+    console.error("Проверьте DISCORD_TOKEN в .env или создайте новый токен бота в Discord Developer Portal.");
+  });
+}
