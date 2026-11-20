@@ -40,13 +40,16 @@ async def before_heartbeat():
 def has_owner(member):
     return any(r.id == ROLE_OWNER for r in member.roles)
 
+def has_staff(member):
+    return any(r.id == ROLE_STAFF for r in member.roles)
+
 def has_mod(member, command):
     if role_can_use_command(member, command):
         return True
     return any(r.id in (ROLE_MODERATOR, ROLE_OWNER) for r in member.roles)
 
 def allowed_channel(interaction):
-    return interaction.channel_id in CHANNELS_ALLOWED or has_owner(interaction.user)
+    return interaction.channel_id in CHANNELS_ALLOWED or has_owner(interaction.user) or has_staff(interaction.user)
 
 def log_to_db(guild_id, user_id, mod_id, ptype, reason):
     conn = database.get_db(); c = conn.cursor()

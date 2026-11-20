@@ -35,8 +35,11 @@ async def before_heartbeat(): await bot.wait_until_ready()
 def has_support(member):
     return role_can_use_command(member, "verf") or any(r.id in (ROLE_SUPPORT, ROLE_OWNER) for r in member.roles)
 
+def has_staff(member):
+    return any(r.id == ROLE_STAFF for r in member.roles)
+
 def allowed_channel(interaction):
-    return interaction.channel_id in CHANNELS_ALLOWED or has_support(interaction.user)
+    return interaction.channel_id in CHANNELS_ALLOWED or has_support(interaction.user) or has_staff(interaction.user)
 
 @bot.tree.command(name="verf", description="Верифицировать пользователя")
 @app_commands.describe(member="Кого верифицируем", gender="Пол")

@@ -27,13 +27,14 @@ export function getDb() {
 
   const seedCategories = [
     { id: "owner", name: "Владельцы", sort_order: 0 },
-    { id: "support", name: "Саппорт", sort_order: 1 },
-    { id: "moderator", name: "Модерация", sort_order: 2 },
+    { id: "staff", name: "Персонал", sort_order: 1 },
+    { id: "support", name: "Саппорт", sort_order: 2 },
+    { id: "moderator", name: "Модерация", sort_order: 3 },
   ];
   const insertCategory = db.prepare(`
     INSERT INTO role_categories (id, name, sort_order)
     VALUES (?, ?, ?)
-    ON CONFLICT(id) DO NOTHING
+    ON CONFLICT(id) DO UPDATE SET name = excluded.name, sort_order = excluded.sort_order
   `);
   for (const category of seedCategories) {
     insertCategory.run(category.id, category.name, category.sort_order);
@@ -41,6 +42,7 @@ export function getDb() {
 
   const seedAssignments = [
     ["1572638729879945216", "owner"],
+    ["1572636864962240701", "staff"],
     ["1572636865448775816", "support"],
     ["1572636865448775818", "moderator"],
   ];
