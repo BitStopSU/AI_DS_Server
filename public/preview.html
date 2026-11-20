@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Discord AI Assistant</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: 'Inter', system-ui, sans-serif; }
+  .sidebar-item.active { background: #5865f2; color: white; }
+  .toggle { position: relative; width: 44px; height: 24px; background: #4b5563; border-radius: 12px; transition: .2s; cursor: pointer; }
+  .toggle.on { background: #22c55e; }
+  .toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; background: white; border-radius: 50%; transition: .2s; }
+  .toggle.on::after { left: 23px; }
+  .log-window { font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; }
+</style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex">
+
+<aside class="w-64 bg-gray-950 border-r border-gray-800 flex flex-col">
+  <div class="p-4 border-b border-gray-800"><h1 class="text-lg font-bold text-indigo-400">Discord AI</h1></div>
+  <nav class="flex-1 p-2 space-y-1">
+    <a href="#" class="sidebar-item active flex items-center gap-3 px-3 py-2 rounded-lg text-sm" data-tab="modules">🧩 Модули</a>
+    <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="bots">🤖 Боты</a>
+    <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="logs">📜 Логи</a>
+    <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="aichat">💬 AI-чат</a>
+    <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="settings">⚙️ Настройки</a>
+  </nav>
+</aside>
+
+<main class="flex-1 p-6 overflow-y-auto">
+  <!-- МОДУЛИ -->
+  <section id="tab-modules" class="tab-content">
+    <h2 class="text-2xl font-bold mb-6">Модули</h2>
+    <div class="grid gap-4 max-w-3xl" id="modules-container"></div>
+  </section>
+
+  <!-- БОТЫ -->
+  <section id="tab-bots" class="tab-content hidden">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-2xl font-bold">Боты</h2>
+      <button onclick="document.getElementById('addBotModal').classList.remove('hidden')" class="bg-indigo-600 px-4 py-2 rounded-lg text-sm">+ Добавить</button>
+    </div>
+    <div class="grid gap-4 max-w-4xl" id="bots-container"></div>
+  </section>
+
+  <!-- ЛОГИ -->
+  <section id="tab-logs" class="tab-content hidden">
+    <h2 class="text-2xl font-bold mb-6">Логи</h2>
+    <div class="flex gap-2 mb-4">
+      <button onclick="loadLogs('ai')" class="bg-indigo-600 px-4 py-2 rounded-lg text-sm">AI-бот</button>
+      <button onclick="loadLogs('mod')" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm">Модератор</button>
+      <button onclick="loadLogs('support')" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm">Саппорт</button>
+    </div>
+    <div class="bg-black rounded-xl p-4 log-window text-green-400 overflow-y-auto max-h-96" id="log-container">Выберите бота...</div>
+  </section>
+
+  <!-- AI-ЧАТ -->
+  <section id="tab-aichat" class="tab-content hidden">
+    <h2 class="text-2xl font-bold mb-6">AI-чат</h2>
+    <div class="max-w-3xl">
+      <div class="bg-gray-800 rounded-xl p-4 h-80 overflow-y-auto mb-3 space-y-3" id="chat-container"></div>
+      <div class="flex gap-2">
+        <input type="text" id="ai-input" placeholder="Напишите запрос..." class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm">
+        <button onclick="sendAiRequest()" class="bg-indigo-600 px-4 py-2 rounded-lg text-sm">Отправить</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- НАСТРОЙКИ -->
+  <section id="tab-settings" class="tab-content hidden">
+    <h2 class="text-2xl font-bold mb-6">Настройки</h2>
+    <div class="max-w-2xl space-y-4">
+      
+      <!-- ID Каналов и Ролей -->
+      <div class="bg-gray-800 p-4 rounded-xl space-y-2 text-sm">
+        <h3 class="font-semibold mb-2">Каналы и роли</h3>
+        <div><label class="text-gray-400 text-xs">Канал запросов</label><input type="text" id="input-request" class="w-full bg-gray-900 rounded px-3 py-2 mt-1"></div>
+        <div><label class="text-gray-400 text-xs">Канал логов</label><input type="text" id="input-logs" class="w-full bg-gray-900 rounded px-3 py-2 mt-1"></div>
+        <div><label class="text-gray-400 text-xs">Роль доступ</label><input type="text" id="input-role" class="w-full bg-gray-900 rounded px-3 py-2 mt-1"></div>
+      </div>
+
+      <!-- API Ключи -->
+      <div class="bg-gray-800 p-4 rounded-xl space-y-2 text-sm">
+        <h3 class="font-semibold mb-2">API-ключи ИИ</h3>
+        
+        <div>
+          <label class="text-gray-400 text-xs">Провайдер по умолчанию</label>
+          <select id="input-provider" class="w-full bg-gray-900 rounded px-3 py-2 mt-1">
+            <option value="openai">OpenAI (GPT)</option>
+            <option value="anthropic">Anthropic (Claude)</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="gemini">Google Gemini</option>
+            <option value="ollama">Ollama (локально)</option>
+          </select>
+        </div>
+
+        <div><label class="text-gray-400 text-xs">OpenAI API Key</label><input type="password" id="input-openai" class="w-full bg-gray-900 rounded px-3 py-2 mt-1" placeholder="sk-..."></div>
+        <div><label class="text-gray-400 text-xs">Anthropic API Key</label><input type="password" id="input-anthropic" class="w-full bg-gray-900 rounded px-3 py-2 mt-1" placeholder="sk-ant-..."></div>
+        <div><label class="text-gray-400 text-xs">DeepSeek API Key</label><input type="password" id="input-deepseek" class="w-full bg-gray-900 rounded px-3 py-2 mt-1" placeholder="sk-..."></div>
+        <div><label class="text-gray-400 text-xs">Gemini API Key</label><input type="password" id="input-gemini" class="w-full bg-gray-900 rounded px-3 py-2 mt-1" placeholder="AIza..."></div>
+      </div>
+
+      <button onclick="saveSettings()" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg text-sm font-medium">💾 Сохранить всё</button>
+    </div>
+  </section>
+</main>
+
+<!-- МОДАЛКА ДОБАВЛЕНИЯ БОТА -->
+<div id="addBotModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+  <div class="bg-gray-800 p-6 rounded-xl w-96 space-y-3 text-sm">
+    <h3 class="font-bold text-lg">Добавить бота</h3>
+    <input type="text" id="bot-id" placeholder="ID (например mod)" class="w-full bg-gray-900 p-2 rounded">
+    <input type="text" id="bot-name" placeholder="Имя (Модератор)" class="w-full bg-gray-900 p-2 rounded">
+    
+    <div>
+      <label class="text-xs text-gray-400">Файл бота (.py)</label>
+      <input type="file" id="bot-file" accept=".py" class="w-full bg-gray-900 p-2 rounded text-xs mt-1">
+    </div>
+
+    <input type="password" id="bot-token" placeholder="Токен Discord" class="w-full bg-gray-900 p-2 rounded">
+    
+    <div class="flex items-center gap-2">
+      <input type="checkbox" id="bot-auto" class="w-4 h-4">
+      <label for="bot-auto" class="text-gray-300">Автозапуск при старте</label>
+    </div>
+
+    <div class="flex gap-2 justify-end mt-4">
+      <button onclick="document.getElementById('addBotModal').classList.add('hidden')" class="px-3 py-1 bg-gray-700 rounded">Отмена</button>
+      <button onclick="addBot()" class="px-3 py-1 bg-indigo-600 rounded">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ВКЛАДКИ
+  document.querySelectorAll('.sidebar-item').forEach(item => {
+    item.addEventListener('click', e => {
+      e.preventDefault();
+      document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+      document.getElementById('tab-' + item.dataset.tab).classList.remove('hidden');
+      if (item.dataset.tab === 'modules') loadModules();
+      if (item.dataset.tab === 'bots') loadBots();
+      if (item.dataset.tab === 'settings') loadSettings();
+    });
+  });
+
+  // МОДУЛИ
+  async function loadModules() {
+    const res = await fetch('/api/modules');
+    const mods = await res.json();
+    document.getElementById('modules-container').innerHTML = mods.map(m => `
+      <div class="bg-gray-800 p-4 rounded-xl flex justify-between items-center">
+        <div><h3 class="font-semibold">${m.name}</h3><p class="text-xs text-gray-400">${m.description}</p></div>
+        <div class="toggle ${m.enabled ? 'on' : ''}" onclick="toggleModule('${m.id}', this)"></div>
+      </div>
+    `).join('');
+  }
+  async function toggleModule(id, el) {
+    const isOn = el.classList.contains('on');
+    el.classList.toggle('on');
+    await fetch(`/api/modules/${id}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({enabled: !isOn}) });
+  }
+
+  // БОТЫ
+  async function loadBots() {
+    const res = await fetch('/api/bots');
+    const bots = await res.json();
+    document.getElementById('bots-container').innerHTML = bots.map(b => `
+      <div class="bg-gray-800 p-4 rounded-xl mb-3">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="font-semibold">${b.name} (${b.script_path})</h3>
+          <span class="text-xs ${b.status === 'running' ? 'text-green-400' : 'text-red-400'}">${b.status}</span>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="botAct('${b.id}', 'start')" class="bg-green-700 px-3 py-1 rounded">Запустить</button>
+          <button onclick="botAct('${b.id}', 'stop')" class="bg-red-700 px-3 py-1 rounded">Остановить</button>
+        </div>
+      </div>
+    `).join('') || '<div class="text-gray-500">Ботов пока нет. Добавьте первого!</div>';
+  }
+  async function botAct(id, act) { await fetch(`/api/bots/${id}/${act}`, {method:'POST'}); setTimeout(loadBots, 1000); }
+  
+  async function addBot() {
+    const fileInput = document.getElementById('bot-file');
+    if (fileInput.files.length === 0) return alert('Выберите файл бота (.py)');
+
+    const formData = new FormData();
+    formData.append('id', document.getElementById('bot-id').value);
+    formData.append('name', document.getElementById('bot-name').value);
+    formData.append('token', document.getElementById('bot-token').value);
+    formData.append('auto_start', document.getElementById('bot-auto').checked);
+    formData.append('script', fileInput.files[0]);
+
+    const res = await fetch('/api/bots/upload', { method: 'POST', body: formData });
+
+    if (res.ok) {
+      document.getElementById('addBotModal').classList.add('hidden');
+      loadBots();
+    } else {
+      alert('Ошибка при загрузке бота');
+    }
+  }
+
+  // ЛОГИ
+  async function loadLogs(id) {
+    const res = await fetch(`/api/logs/${id}`);
+    const data = await res.json();
+    document.getElementById('log-container').innerText = data.content;
+  }
+
+  // НАСТРОЙКИ
+  async function loadSettings() {
+    const res = await fetch('/api/settings');
+    const s = await res.json();
+    
+    document.getElementById('input-request').value = s.request_channel_id || '';
+    document.getElementById('input-logs').value = s.log_channel_id || '';
+    document.getElementById('input-role').value = s.allowed_role_id || '';
+    
+    document.getElementById('input-provider').value = s.default_provider || 'openai';
+    document.getElementById('input-openai').value = s.openai_key || '';
+    document.getElementById('input-anthropic').value = s.anthropic_key || '';
+    document.getElementById('input-deepseek').value = s.deepseek_key || '';
+    document.getElementById('input-gemini').value = s.gemini_key || '';
+  }
+
+  async function saveSettings() {
+    const data = { 
+      request_channel_id: document.getElementById('input-request').value, 
+      log_channel_id: document.getElementById('input-logs').value, 
+      allowed_role_id: document.getElementById('input-role').value,
+      
+      default_provider: document.getElementById('input-provider').value,
+      openai_key: document.getElementById('input-openai').value,
+      anthropic_key: document.getElementById('input-anthropic').value,
+      deepseek_key: document.getElementById('input-deepseek').value,
+      gemini_key: document.getElementById('input-gemini').value
+    };
+    await fetch('/api/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+    alert('Настройки сохранены!');
+  }
+
+  // AI-ЧАТ
+  async function sendAiRequest() {
+    const prompt = document.getElementById('ai-input').value;
+    if(!prompt) return;
+    const container = document.getElementById('chat-container');
+    container.innerHTML += `<div class="text-right text-indigo-400">Вы: ${prompt}</div>`;
+    document.getElementById('ai-input').value = '';
+    
+    const res = await fetch('/api/ai/ask', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prompt})});
+    const data = await res.json();
+    
+    if (data.type === 'text') container.innerHTML += `<div class="text-gray-300">AI: ${data.content}</div>`;
+    else if (data.type === 'error') container.innerHTML += `<div class="text-red-400">AI: Ошибка: ${data.content}</div>`;
+    else if (data.type === 'action') {
+      container.innerHTML += `<div class="text-yellow-400">AI: Планирую выполнить <b>${data.action}</b><br>
+        <button onclick="confirmAi('${data.action}', ${JSON.stringify(data.args).replace(/"/g, '&quot;')})" class="bg-green-600 px-2 py-1 rounded mt-1 text-sm">Подтвердить</button></div>`;
+    }
+    container.scrollTop = container.scrollHeight;
+  }
+  
+  async function confirmAi(action, args) {
+    const res = await fetch('/api/ai/confirm', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action, args})});
+    const data = await res.json();
+    document.getElementById('chat-container').innerHTML += `<div class="text-green-400">Выполнено: ${data.summary}</div>`;
+  }
+
+  loadModules();
+</script>
+</body>
+</html>

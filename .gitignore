@@ -1,0 +1,9 @@
+node_modules/
+.env
+data.db
+data.db-*
+shared_bot_data.db
+shared_bot_data.db-*
+backups/
+logs/
+credentials/
