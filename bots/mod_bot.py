@@ -40,7 +40,9 @@ async def before_heartbeat():
 def has_owner(member):
     return any(r.id == ROLE_OWNER for r in member.roles)
 
-def has_mod(member):
+def has_mod(member, command):
+    if role_can_use_command(member, command):
+        return True
     return any(r.id in (ROLE_MODERATOR, ROLE_OWNER) for r in member.roles)
 
 def allowed_channel(interaction):
@@ -72,7 +74,7 @@ async def before_voice(): await bot.wait_until_ready()
 @app_commands.describe(member="Нарушитель", action="warn/mute/kick/ban", reason="Причина", duration="Минуты (для mute)")
 @app_commands.choices(action=[app_commands.Choice(name="warn", value="warn"), app_commands.Choice(name="mute", value="mute"), app_commands.Choice(name="kick", value="kick"), app_commands.Choice(name="ban", value="ban")])
 async def achen(interaction: discord.Interaction, member: discord.Member, action: app_commands.Choice[str], reason: str = "Не указана", duration: int = 10):
-    if not has_mod(interaction.user): return await interaction.response.send_message("❌ Нет прав.", ephemeral=True)
+    if not has_mod(interaction.user, "achen"): return await interaction.response.send_message("❌ Нет прав.", ephemeral=True)
     if not allowed_channel(interaction): return await interaction.response.send_message("❌ Канал недоступен.", ephemeral=True)
     if member.top_role >= interaction.user.top_role and interaction.user.id != interaction.guild.owner_id: return await interaction.response.send_message("❌ Иерархия ролей.", ephemeral=True)
     
@@ -89,7 +91,7 @@ async def achen(interaction: discord.Interaction, member: discord.Member, action
 
 @bot.tree.command(name="clear", description="Очистить сообщения")
 async def clear(interaction: discord.Interaction, amount: int):
-    if not has_mod(interaction.user): return await interaction.response.send_message("❌ Нет прав.", ephemeral=True)
+    if not has_mod(interaction.user, "clear"): return await interaction.response.send_message("❌ Нет прав.", ephemeral=True)
     if not allowed_channel(interaction): return await interaction.response.send_message("❌ Канал недоступен.", ephemeral=True)
     amount = max(1, min(amount, 100))
     await interaction.channel.purge(limit=amount)

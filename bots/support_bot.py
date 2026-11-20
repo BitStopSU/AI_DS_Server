@@ -33,7 +33,7 @@ async def send_heartbeat():
 async def before_heartbeat(): await bot.wait_until_ready()
 
 def has_support(member):
-    return any(r.id in (ROLE_SUPPORT, ROLE_OWNER) for r in member.roles)
+    return role_can_use_command(member, "verf") or any(r.id in (ROLE_SUPPORT, ROLE_OWNER) for r in member.roles)
 
 def allowed_channel(interaction):
     return interaction.channel_id in CHANNELS_ALLOWED or has_support(interaction.user)

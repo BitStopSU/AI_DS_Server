@@ -43,6 +43,75 @@ export async function startWebServer(client, getGuild) {
     res.json({ ok: true });
   });
 
+  // Роли и привязка команд
+  app.get("/api/role-manager", (req, res) => {
+    const guild = getGuild();
+    const roles = guild
+      ? [...guild.roles.cache.values()]
+          .filter(role => role.id !== guild.id)
+          .sort((a, b) => b.position - a.position)
+          .map(role => ({ id: role.id, name: role.name, color: role.hexColor, position: role.position }))
+      : [];
+    const db = getDb();
+    res.json({
+      roles,
+      categories: db.prepare("SELECT id, name, sort_order FROM role_categories ORDER BY sort_order, name").all(),
+      assignments: db.prepare("SELECT role_id, category_id FROM role_assignments").all(),
+      permissions: db.prepare("SELECT role_id, command FROM role_command_permissions").all(),
+    });
+  });
+
+  app.post("/api/role-manager", (req, res) => {
+    try {
+      const db = getDb();
+      const categories = Array.isArray(req.body.categories) ? req.body.categories : [];
+      const assignments = Array.isArray(req.body.assignments) ? req.body.assignments : [];
+      const permissions = Array.isArray(req.body.permissions) ? req.body.permissions : [];
+
+      const transaction = db.transaction(() => {
+        db.prepare("DELETE FROM role_assignments").run();
+        db.prepare("DELETE FROM role_command_permissions").run();
+
+        const upsertCategory = db.prepare(`
+          INSERT INTO role_categories (id, name, sort_order)
+          VALUES (?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET name = excluded.name, sort_order = excluded.sort_order
+        `);
+        categories.forEach((category, index) => {
+          const id = String(category.id || "").trim();
+          const name = String(category.name || "").trim();
+          if (id && name) upsertCategory.run(id, name, Number.isFinite(category.sort_order) ? category.sort_order : index);
+        });
+        const keptCategoryIds = categories.map(category => String(category.id || "").trim()).filter(Boolean);
+        const existingCategories = db.prepare("SELECT id FROM role_categories").all();
+        const deleteCategory = db.prepare("DELETE FROM role_categories WHERE id = ?");
+        existingCategories.forEach(category => {
+          if (!keptCategoryIds.includes(category.id)) deleteCategory.run(category.id);
+        });
+
+        const insertAssignment = db.prepare(`
+          INSERT OR REPLACE INTO role_assignments (role_id, category_id, updated_at)
+          VALUES (?, ?, datetime('now'))
+        `);
+        assignments.forEach(item => {
+          if (item.role_id && item.category_id) insertAssignment.run(String(item.role_id), String(item.category_id));
+        });
+
+        const insertPermission = db.prepare(`
+          INSERT OR IGNORE INTO role_command_permissions (role_id, command)
+          VALUES (?, ?)
+        `);
+        permissions.forEach(item => {
+          if (item.role_id && item.command) insertPermission.run(String(item.role_id), String(item.command));
+        });
+      });
+      transaction();
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // ЛОГИ
   app.get("/api/logs/:botId", (req, res) => {
     const logPath = path.join(process.cwd(), "logs", `${req.params.botId}.log`);

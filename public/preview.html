@@ -79,6 +79,30 @@
         <div><label class="text-gray-400 text-xs">Роль доступ</label><input type="text" id="input-role" class="w-full bg-gray-900 rounded px-3 py-2 mt-1"></div>
       </div>
 
+      <!-- Управление ролями -->
+      <div class="bg-gray-800 p-4 rounded-xl space-y-3 text-sm">
+        <div class="flex justify-between items-center">
+          <h3 class="font-semibold">Роли и команды</h3>
+          <button type="button" onclick="addRoleCategory()" class="bg-indigo-700 hover:bg-indigo-600 px-3 py-1 rounded">+ Категория</button>
+        </div>
+        <div id="role-categories" class="space-y-2"></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead class="text-xs text-gray-400">
+              <tr>
+                <th class="py-2 pr-3">Роль Discord</th>
+                <th class="py-2 pr-3">Категория</th>
+                <th class="py-2 px-2">/verf</th>
+                <th class="py-2 px-2">/achen</th>
+                <th class="py-2 px-2">/clear</th>
+              </tr>
+            </thead>
+            <tbody id="role-manager-rows"></tbody>
+          </table>
+        </div>
+        <button type="button" onclick="saveRoleManager()" class="bg-green-700 hover:bg-green-600 px-3 py-2 rounded">Сохранить роли и команды</button>
+      </div>
+
       <!-- API Ключи -->
       <div class="bg-gray-800 p-4 rounded-xl space-y-2 text-sm">
         <h3 class="font-semibold mb-2">API-ключи ИИ</h3>
@@ -253,6 +277,8 @@
   }
 
   // НАСТРОЙКИ
+  let roleManagerData = null;
+
   async function loadSettings() {
     const res = await fetch('/api/settings');
     const s = await res.json();
@@ -266,6 +292,96 @@
     document.getElementById('input-anthropic').value = s.anthropic_key || '';
     document.getElementById('input-deepseek').value = s.deepseek_key || '';
     document.getElementById('input-gemini').value = s.gemini_key || '';
+    await loadRoleManager();
+  }
+
+  async function loadRoleManager() {
+    const res = await fetch('/api/role-manager');
+    roleManagerData = await res.json();
+    renderRoleManager();
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+    })[char]);
+  }
+
+  function renderRoleManager() {
+    if (!roleManagerData) return;
+    const categories = roleManagerData.categories;
+
+    document.getElementById('role-categories').innerHTML = categories.map((category, index) => `
+      <div class="flex items-center gap-2" data-category-id="${escapeHtml(category.id)}">
+        <input type="text" value="${escapeHtml(category.name)}" data-category-name
+          class="flex-1 bg-gray-900 rounded px-3 py-2" placeholder="Название категории">
+        <button type="button" onclick="removeRoleCategory('${escapeHtml(category.id)}')" class="text-red-400 px-2">Удалить</button>
+      </div>
+    `).join('');
+
+    const assignmentMap = Object.fromEntries(roleManagerData.assignments.map(item => [item.role_id, item.category_id]));
+    const permissionSet = new Set(roleManagerData.permissions.map(item => `${item.role_id}:${item.command}`));
+
+    document.getElementById('role-manager-rows').innerHTML = roleManagerData.roles.map(role => {
+      const options = categories.map(category =>
+        `<option value="${escapeHtml(category.id)}" ${assignmentMap[role.id] === category.id ? 'selected' : ''}>${escapeHtml(category.name)}</option>`
+      ).join('');
+      const checked = command => permissionSet.has(`${role.id}:${command}`) ? 'checked' : '';
+      return `
+        <tr data-role-id="${escapeHtml(role.id)}">
+          <td class="py-2 pr-3"><span class="font-medium">${escapeHtml(role.name)}</span><span class="block text-xs text-gray-500">${escapeHtml(role.id)}</span></td>
+          <td class="py-2 pr-3"><select data-role-category class="bg-gray-900 rounded px-2 py-1"><option value="">Без категории</option>${options}</select></td>
+          <td class="py-2 px-2 text-center"><input type="checkbox" data-command="verf" ${checked('verf')}></td>
+          <td class="py-2 px-2 text-center"><input type="checkbox" data-command="achen" ${checked('achen')}></td>
+          <td class="py-2 px-2 text-center"><input type="checkbox" data-command="clear" ${checked('clear')}></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function addRoleCategory() {
+    const name = prompt('Название категории');
+    if (!name || !name.trim()) return;
+    const id = `category-${Date.now()}`;
+    roleManagerData.categories.push({ id, name: name.trim(), sort_order: roleManagerData.categories.length });
+    renderRoleManager();
+  }
+
+  function removeRoleCategory(id) {
+    roleManagerData.categories = roleManagerData.categories.filter(category => category.id !== id);
+    renderRoleManager();
+  }
+
+  async function saveRoleManager() {
+    const categoryElements = [...document.querySelectorAll('[data-category-id]')];
+    const categories = categoryElements.map((element, index) => ({
+      id: element.dataset.categoryId,
+      name: element.querySelector('[data-category-name]').value.trim(),
+      sort_order: index,
+    })).filter(category => category.name);
+
+    const assignments = [];
+    const permissions = [];
+    document.querySelectorAll('#role-manager-rows tr[data-role-id]').forEach(row => {
+      const roleId = row.dataset.roleId;
+      const categoryId = row.querySelector('[data-role-category]').value;
+      if (categoryId) assignments.push({ role_id: roleId, category_id: categoryId });
+      row.querySelectorAll('[data-command]').forEach(input => {
+        if (input.checked) permissions.push({ role_id: roleId, command: input.dataset.command });
+      });
+    });
+
+    const res = await fetch('/api/role-manager', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ categories, assignments, permissions }),
+    });
+    const data = await res.json();
+    if (!res.ok) alert(data.error || 'Не удалось сохранить роли');
+    else {
+      await loadRoleManager();
+      alert('Роли и привязка команд сохранены');
+    }
   }
 
   async function saveSettings() {

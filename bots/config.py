@@ -15,3 +15,31 @@ CHANNELS_ALLOWED = [
     1572636866077925518, 1572636866077925519, 1572636866862252119, 1572636866862252121
 ]
 VOICE_MOD_TIME = 1572636867587874995
+
+import os
+import sqlite3
+
+def role_ids(member):
+    return [str(role.id) for role in member.roles]
+
+def role_can_use_command(member, command):
+    if ROLE_OWNER in [role.id for role in member.roles]:
+        return True
+
+    db_path = os.path.join(os.getcwd(), "data.db")
+    if not os.path.exists(db_path):
+        return False
+
+    ids = role_ids(member)
+    conn = sqlite3.connect(db_path)
+    try:
+        placeholders = ",".join("?" for _ in ids)
+        if not placeholders:
+            return False
+        row = conn.execute(
+            f"SELECT 1 FROM role_command_permissions WHERE command = ? AND role_id IN ({placeholders}) LIMIT 1",
+            [command, *ids],
+        ).fetchone()
+        return row is not None
+    finally:
+        conn.close()

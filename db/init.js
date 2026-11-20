@@ -25,5 +25,44 @@ export function getDb() {
     insertBot.run(bot.id, bot.name, bot.script_path);
   }
 
+  const seedCategories = [
+    { id: "owner", name: "Владельцы", sort_order: 0 },
+    { id: "support", name: "Саппорт", sort_order: 1 },
+    { id: "moderator", name: "Модерация", sort_order: 2 },
+  ];
+  const insertCategory = db.prepare(`
+    INSERT INTO role_categories (id, name, sort_order)
+    VALUES (?, ?, ?)
+    ON CONFLICT(id) DO NOTHING
+  `);
+  for (const category of seedCategories) {
+    insertCategory.run(category.id, category.name, category.sort_order);
+  }
+
+  const seedAssignments = [
+    ["1572638729879945216", "owner"],
+    ["1572636865448775816", "support"],
+    ["1572636865448775818", "moderator"],
+  ];
+  const insertAssignment = db.prepare(`
+    INSERT OR IGNORE INTO role_assignments (role_id, category_id)
+    VALUES (?, ?)
+  `);
+  for (const assignment of seedAssignments) insertAssignment.run(...assignment);
+
+  const seedPermissions = [
+    ["1572638729879945216", "verf"],
+    ["1572638729879945216", "achen"],
+    ["1572638729879945216", "clear"],
+    ["1572636865448775816", "verf"],
+    ["1572636865448775818", "achen"],
+    ["1572636865448775818", "clear"],
+  ];
+  const insertPermission = db.prepare(`
+    INSERT OR IGNORE INTO role_command_permissions (role_id, command)
+    VALUES (?, ?)
+  `);
+  for (const permission of seedPermissions) insertPermission.run(...permission);
+
   return db;
 }
