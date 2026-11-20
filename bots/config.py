@@ -38,7 +38,14 @@ def role_can_use_command(member, command):
         if not placeholders:
             return False
         row = conn.execute(
-            f"SELECT 1 FROM role_command_permissions WHERE command = ? AND role_id IN ({placeholders}) LIMIT 1",
+            f"""
+            SELECT 1
+            FROM role_assignments assignment
+            JOIN role_category_permissions permission
+              ON permission.category_id = assignment.category_id
+            WHERE permission.command = ? AND assignment.role_id IN ({placeholders})
+            LIMIT 1
+            """,
             [command, *ids],
         ).fetchone()
         return row is not None

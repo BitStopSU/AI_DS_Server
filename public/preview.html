@@ -85,12 +85,6 @@
             <tr>
               <th class="py-2 pr-3">Роль Discord</th>
               <th class="py-2 pr-3">Категория</th>
-              <th class="py-2 px-2">/verf</th>
-              <th class="py-2 px-2">/achen</th>
-              <th class="py-2 px-2">/clear</th>
-              <th class="py-2 px-2">/staf_profile</th>
-              <th class="py-2 px-2">/staf_stats</th>
-              <th class="py-2 px-2">/top_veref</th>
             </tr>
           </thead>
           <tbody id="role-manager-rows"></tbody>
@@ -319,16 +313,30 @@
     if (!roleManagerData) return;
     const categories = roleManagerData.categories;
 
+    const permissionSet = new Set(roleManagerData.permissions.map(item => `${item.category_id}:${item.command}`));
+    const commandNames = [
+      ['verf', '/verf'],
+      ['achen', '/achen'],
+      ['clear', '/clear'],
+      ['staf_profile', '/staf_profile'],
+      ['staf_stats', '/staf_stats'],
+      ['top_veref', '/top_veref'],
+    ];
+
     document.getElementById('role-categories').innerHTML = categories.map((category, index) => `
-      <div class="flex items-center gap-2" data-category-id="${escapeHtml(category.id)}">
+      <div class="flex flex-wrap items-center gap-3" data-category-id="${escapeHtml(category.id)}">
         <input type="text" value="${escapeHtml(category.name)}" data-category-name
-          class="flex-1 bg-gray-900 rounded px-3 py-2" placeholder="Название категории">
-        <button type="button" onclick="removeRoleCategory('${escapeHtml(category.id)}')" class="text-red-400 px-2">Удалить</button>
+          class="w-48 bg-gray-900 rounded px-3 py-2" placeholder="Название категории">
+        <div class="flex flex-wrap gap-3">
+          ${commandNames.map(([command, label]) =>
+            `<label class="flex items-center gap-1 text-gray-300"><input type="checkbox" data-category-command="${command}" ${permissionSet.has(`${category.id}:${command}`) ? 'checked' : ''}> ${label}</label>`
+          ).join('')}
+        </div>
+        <button type="button" onclick="removeRoleCategory('${escapeHtml(category.id)}')" class="text-red-400 px-2 ml-auto">Удалить</button>
       </div>
     `).join('');
 
     const assignmentMap = Object.fromEntries(roleManagerData.assignments.map(item => [item.role_id, item.category_id]));
-    const permissionSet = new Set(roleManagerData.permissions.map(item => `${item.role_id}:${item.command}`));
 
     document.getElementById('role-manager-rows').innerHTML = roleManagerData.roles.map(role => {
       const options = categories.map(category =>
@@ -339,12 +347,6 @@
         <tr data-role-id="${escapeHtml(role.id)}">
           <td class="py-2 pr-3"><span class="font-medium">${escapeHtml(role.name)}</span><span class="block text-xs text-gray-500">${escapeHtml(role.id)}</span></td>
           <td class="py-2 pr-3"><select data-role-category class="bg-gray-900 rounded px-2 py-1"><option value="">Без категории</option>${options}</select></td>
-          <td class="py-2 px-2 text-center"><input type="checkbox" data-command="verf" ${checked('verf')}></td>
-          <td class="py-2 px-2 text-center"><input type="checkbox" data-command="achen" ${checked('achen')}></td>
-          <td class="py-2 px-2 text-center"><input type="checkbox" data-command="clear" ${checked('clear')}></td>
-          <td class="py-2 px-2 text-center"><input type="checkbox" data-command="staf_profile" ${checked('staf_profile')}></td>
-          <td class="py-2 px-2 text-center"><input type="checkbox" data-command="staf_stats" ${checked('staf_stats')}></td>
-          <td class="py-2 px-2 text-center"><input type="checkbox" data-command="top_veref" ${checked('top_veref')}></td>
         </tr>
       `;
     }).join('');
@@ -373,13 +375,18 @@
 
     const assignments = [];
     const permissions = [];
+    categoryElements.forEach(element => {
+      element.querySelectorAll('[data-category-command]').forEach(input => {
+        if (input.checked) permissions.push({
+          category_id: element.dataset.categoryId,
+          command: input.dataset.categoryCommand,
+        });
+      });
+    });
     document.querySelectorAll('#role-manager-rows tr[data-role-id]').forEach(row => {
       const roleId = row.dataset.roleId;
       const categoryId = row.querySelector('[data-role-category]').value;
       if (categoryId) assignments.push({ role_id: roleId, category_id: categoryId });
-      row.querySelectorAll('[data-command]').forEach(input => {
-        if (input.checked) permissions.push({ role_id: roleId, command: input.dataset.command });
-      });
     });
 
     const res = await fetch('/api/role-manager', {

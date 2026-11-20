@@ -6,3 +6,4 @@ CREATE TABLE IF NOT EXISTS role_permissions (role_id TEXT PRIMARY KEY, can_manag
 CREATE TABLE IF NOT EXISTS role_categories (id TEXT PRIMARY KEY, name TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS role_assignments (role_id TEXT PRIMARY KEY, category_id TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT (datetime('now')));
 CREATE TABLE IF NOT EXISTS role_command_permissions (role_id TEXT NOT NULL, command TEXT NOT NULL, PRIMARY KEY (role_id, command));
+CREATE TABLE IF NOT EXISTS role_category_permissions (category_id TEXT NOT NULL, command TEXT NOT NULL, PRIMARY KEY (category_id, command));

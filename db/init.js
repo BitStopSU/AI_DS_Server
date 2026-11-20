@@ -70,5 +70,18 @@ export function getDb() {
   `);
   for (const permission of seedPermissions) insertPermission.run(...permission);
 
+  const categoryPermissions = [
+    ["owner", "verf"], ["owner", "achen"], ["owner", "clear"],
+    ["owner", "staf_profile"], ["owner", "staf_stats"], ["owner", "top_veref"],
+    ["staff", "staf_profile"], ["staff", "staf_stats"], ["staff", "top_veref"],
+    ["support", "verf"],
+    ["moderator", "achen"], ["moderator", "clear"],
+  ];
+  const insertCategoryPermission = db.prepare(`
+    INSERT OR IGNORE INTO role_category_permissions (category_id, command)
+    VALUES (?, ?)
+  `);
+  for (const permission of categoryPermissions) insertCategoryPermission.run(...permission);
+
   return db;
 }

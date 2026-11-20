@@ -57,7 +57,7 @@ export async function startWebServer(client, getGuild) {
       roles,
       categories: db.prepare("SELECT id, name, sort_order FROM role_categories ORDER BY sort_order, name").all(),
       assignments: db.prepare("SELECT role_id, category_id FROM role_assignments").all(),
-      permissions: db.prepare("SELECT role_id, command FROM role_command_permissions").all(),
+      permissions: db.prepare("SELECT category_id, command FROM role_category_permissions").all(),
     });
   });
 
@@ -71,6 +71,7 @@ export async function startWebServer(client, getGuild) {
       const transaction = db.transaction(() => {
         db.prepare("DELETE FROM role_assignments").run();
         db.prepare("DELETE FROM role_command_permissions").run();
+        db.prepare("DELETE FROM role_category_permissions").run();
 
         const upsertCategory = db.prepare(`
           INSERT INTO role_categories (id, name, sort_order)
@@ -98,11 +99,12 @@ export async function startWebServer(client, getGuild) {
         });
 
         const insertPermission = db.prepare(`
-          INSERT OR IGNORE INTO role_command_permissions (role_id, command)
+          INSERT OR IGNORE INTO role_category_permissions (category_id, command)
           VALUES (?, ?)
         `);
         permissions.forEach(item => {
-          if (item.role_id && item.command) insertPermission.run(String(item.role_id), String(item.command));
+          const categoryId = item.category_id || item.role_id;
+          if (categoryId && item.command) insertPermission.run(String(categoryId), String(item.command));
         });
       });
       transaction();
