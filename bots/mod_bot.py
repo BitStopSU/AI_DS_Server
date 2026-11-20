@@ -37,8 +37,14 @@ async def send_heartbeat():
 async def before_heartbeat():
     await bot.wait_until_ready()
 
-def has_mod(member): return any(r.id == ROLE_MODERATOR for r in member.roles)
-def allowed_channel(interaction): return interaction.channel_id in CHANNELS_ALLOWED
+def has_owner(member):
+    return any(r.id == ROLE_OWNER for r in member.roles)
+
+def has_mod(member):
+    return any(r.id in (ROLE_MODERATOR, ROLE_OWNER) for r in member.roles)
+
+def allowed_channel(interaction):
+    return interaction.channel_id in CHANNELS_ALLOWED or has_owner(interaction.user)
 
 def log_to_db(guild_id, user_id, mod_id, ptype, reason):
     conn = database.get_db(); c = conn.cursor()
