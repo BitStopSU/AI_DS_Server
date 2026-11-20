@@ -14,7 +14,14 @@ export async function startBot(botId) {
   if (!bot) throw new Error("Бот не найден в БД");
   if (processes.has(botId)) return { ok: false, reason: "Уже запущен" };
 
-  const token = decrypt(bot.token_encrypted);
+  const envTokenNames = { support: "SUPPORT_BOT_TOKEN", mod: "MOD_BOT_TOKEN" };
+  const envToken = process.env[envTokenNames[botId]];
+  const token = bot.token_encrypted ? decrypt(bot.token_encrypted) : envToken;
+  if (!token) {
+    db.prepare("UPDATE bots SET status='stopped', pid=NULL, last_error=? WHERE id=?")
+      .run("Токен бота не настроен", botId);
+    return { ok: false, reason: "Токен бота не настроен" };
+  }
   const scriptPath = path.join(process.cwd(), "bots", bot.script_path);
   
   const child = spawn("python", [scriptPath], {
@@ -29,6 +36,12 @@ export async function startBot(botId) {
   const stream = fs.createWriteStream(path.join(LOGS_DIR, `${botId}.log`), { flags: "a" });
   child.stdout.pipe(stream);
   child.stderr.pipe(stream);
+
+  child.on("error", (err) => {
+    processes.delete(botId);
+    db.prepare("UPDATE bots SET status='crashed', pid=NULL, last_error=? WHERE id=?")
+      .run(err.message, botId);
+  });
   
   console.log(`[${botId}] Запущен, PID: ${child.pid}`);
 
@@ -52,6 +65,10 @@ export async function restartBot(botId) {
   await stopBot(botId);
   await new Promise(r => setTimeout(r, 1000));
   return startBot(botId);
+}
+
+export function getStatus(botId) {
+  return getDb().prepare("SELECT * FROM bots WHERE id = ?").get(botId);
 }
 
 export async function autoStartAll() {

@@ -8,6 +8,8 @@ import os
 import aiohttp
 import asyncio
 
+database.init_db()
+
 # Читаем токен, который передает панель
 TOKEN = os.environ.get("BOT_TOKEN")
 if not TOKEN:

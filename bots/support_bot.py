@@ -6,6 +6,8 @@ from config import *
 import os
 import aiohttp
 
+database.init_db()
+
 TOKEN = os.environ.get("BOT_TOKEN")
 if not TOKEN:
     raise RuntimeError("BOT_TOKEN не задан! Запустите через панель.")
