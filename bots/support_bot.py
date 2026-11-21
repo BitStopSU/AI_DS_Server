@@ -5,6 +5,8 @@ import database
 from config import *
 import os
 import aiohttp
+import sqlite3
+import json
 
 database.init_db()
 
@@ -19,6 +21,7 @@ class Bot(commands.Bot):
         await self.tree.sync()
         track_support_voice_time.start()
         send_heartbeat.start()
+        bot.add_view(RecruitmentView(recruitment_positions()))
 
 bot = Bot()
 
@@ -41,6 +44,147 @@ def has_staff(member):
 
 def allowed_channel(interaction):
     return interaction.channel_id in CHANNELS_ALLOWED or has_support(interaction.user) or has_staff(interaction.user)
+
+def recruitment_db_path():
+    return os.path.join(os.getcwd(), "data.db")
+
+def recruitment_positions():
+    db_path = recruitment_db_path()
+    if not os.path.exists(db_path):
+        return []
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("SELECT 1 FROM recruitment_positions LIMIT 1")
+        rows = conn.execute(
+            "SELECT role_id, name, description FROM recruitment_positions "
+            "WHERE active=1 ORDER BY sort_order, name"
+        ).fetchall()
+        return [{"role_id": row[0], "name": row[1], "description": row[2]} for row in rows]
+    except sqlite3.Error:
+        return []
+    finally:
+        conn.close()
+
+def recruitment_setting(key):
+    db_path = recruitment_db_path()
+    if not os.path.exists(db_path):
+        return ""
+    conn = sqlite3.connect(db_path)
+    try:
+        row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+        return row[0] if row else ""
+    except sqlite3.Error:
+        return ""
+    finally:
+        conn.close()
+
+class RecruitmentPositionSelect(discord.ui.Select):
+    def __init__(self, positions):
+        options = [
+            discord.SelectOption(
+                label=position["name"][:100],
+                value=position["role_id"],
+                description=(position["description"] or "Открытое направление")[:100],
+            )
+            for position in positions[:25]
+        ]
+        super().__init__(
+            placeholder="Выберите направление набора",
+            min_values=1,
+            max_values=1,
+            options=options or [discord.SelectOption(label="Нет открытых направлений", value="none")],
+        )
+        self.positions = {position["role_id"]: position for position in positions}
+
+    async def callback(self, interaction):
+        if self.values[0] == "none":
+            await interaction.response.send_message("Открытых направлений пока нет.", ephemeral=True)
+            return
+        self.view.selected_position = self.positions[self.values[0]]
+        await interaction.response.defer_update()
+
+class RecruitmentModal(discord.ui.Modal, title="Заявка на персонал"):
+    age = discord.ui.TextInput(label="Возраст", required=True, max_length=3)
+    experience = discord.ui.TextInput(label="Опыт и компетенции", required=True, style=discord.TextStyle.paragraph, max_length=1000)
+    activity = discord.ui.TextInput(label="Устройства и активность", required=True, style=discord.TextStyle.paragraph, max_length=500)
+    schedule = discord.ui.TextInput(label="Сколько часов в день готовы уделить?", required=True, max_length=100)
+    about = discord.ui.TextInput(label="Расскажите о себе", required=True, style=discord.TextStyle.paragraph, max_length=1000)
+
+    def __init__(self, position):
+        super().__init__()
+        self.position = position
+        self.title = f"Заявка: {position['name']}"
+
+    async def on_submit(self, interaction):
+        answers = {
+            "Возраст": str(self.age),
+            "Опыт и компетенции": str(self.experience),
+            "Устройства и активность": str(self.activity),
+            "Готовое время": str(self.schedule),
+            "О себе": str(self.about),
+        }
+        db_path = recruitment_db_path()
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO recruitment_applications "
+            "(guild_id, applicant_id, position_role_id, position_name, answers, status) "
+            "VALUES (?, ?, ?, ?, ?, 'pending')",
+            (
+                interaction.guild_id,
+                interaction.user.id,
+                self.position["role_id"],
+                self.position["name"],
+                json.dumps(answers, ensure_ascii=False),
+            ),
+        )
+        application_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        review_setting = "recruitment_review_moderator_channel_id" if str(self.position["role_id"]) == str(ROLE_MODERATOR) else "recruitment_review_support_channel_id"
+        review_channel_id = recruitment_setting(review_setting)
+        if not review_channel_id:
+            review_channel_id = recruitment_setting("recruitment_review_channel_id")
+        review_channel = interaction.guild.get_channel(int(review_channel_id)) if review_channel_id else None
+        if review_channel:
+            embed = discord.Embed(
+                title=f"Новая заявка: {self.position['name']}",
+                color=discord.Color.blurple(),
+            )
+            embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
+            embed.add_field(name="Участник", value=f"{interaction.user.mention} ({interaction.user.id})", inline=False)
+            for question, answer in answers.items():
+                embed.add_field(name=question, value=answer, inline=False)
+            embed.set_footer(text=f"Заявка #{application_id}")
+            await review_channel.send(embed=embed)
+
+        await interaction.response.send_message(
+            f"✅ Заявка на направление **{self.position['name']}** отправлена.",
+            ephemeral=True,
+        )
+
+class RecruitmentView(discord.ui.View):
+    def __init__(self, positions):
+        super().__init__(timeout=None)
+        self.selected_position = positions[0] if positions else None
+        if positions:
+            self.add_item(RecruitmentPositionSelect(positions))
+
+        apply_button = discord.ui.Button(
+            label="Подать заявку",
+            style=discord.ButtonStyle.primary,
+            custom_id="recruitment_apply",
+            disabled=not positions,
+        )
+        apply_button.callback = self.apply
+        self.add_item(apply_button)
+
+    async def apply(self, interaction):
+        if not self.selected_position:
+            await interaction.response.send_message("Сначала выберите направление.", ephemeral=True)
+            return
+        await interaction.response.send_modal(RecruitmentModal(self.selected_position))
 
 def format_duration(seconds):
     seconds = int(seconds or 0)
@@ -255,6 +399,36 @@ async def stafftable(interaction: discord.Interaction):
 
     embed = discord.Embed(title="Состав персонала • все ветки", description="\n".join(lines)[:4096], color=discord.Color.blurple())
     await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="recruit_post", description="Опубликовать набор персонала")
+async def recruit_post(interaction: discord.Interaction):
+    if not can_staff(interaction.user, "recruit_post"):
+        return await interaction.response.send_message("❌ Нет прав.", ephemeral=True)
+
+    positions = recruitment_positions()
+    if not positions:
+        return await interaction.response.send_message("Сначала добавьте направления набора в панель.", ephemeral=True)
+
+    target_channel = interaction.channel
+    configured_channel_id = recruitment_setting("recruitment_channel_id")
+    if configured_channel_id:
+        configured_channel = interaction.guild.get_channel(int(configured_channel_id))
+        if configured_channel:
+            target_channel = configured_channel
+
+    embed = discord.Embed(
+        title="Набор в персонал",
+        description="Выберите направление в списке ниже и заполните анкету.",
+        color=discord.Color.from_rgb(88, 101, 242),
+    )
+    embed.add_field(
+        name="Открытые направления",
+        value="\n".join(f"• {position['name']} — {position['description']}".strip() for position in positions),
+        inline=False,
+    )
+    embed.set_footer(text="Заявки рассматриваются администрацией сервера")
+    await target_channel.send(embed=embed, view=RecruitmentView(positions))
+    await interaction.response.send_message(f"Карточка набора опубликована в {target_channel.mention}.", ephemeral=True)
 
 @bot.tree.command(name="verf", description="Верифицировать пользователя")
 @app_commands.describe(member="Кого верифицируем", gender="Пол")

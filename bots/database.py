@@ -19,6 +19,14 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS support_voice_time (
         user_id INTEGER, guild_id INTEGER, seconds INTEGER DEFAULT 0,
         PRIMARY KEY (user_id, guild_id))''')
+    c.execute('''CREATE TABLE IF NOT EXISTS recruitment_positions (
+        role_id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT DEFAULT '',
+        active INTEGER DEFAULT 1, sort_order INTEGER DEFAULT 0)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS recruitment_applications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id INTEGER, applicant_id INTEGER,
+        position_role_id TEXT, position_name TEXT, answers TEXT DEFAULT '{}',
+        status TEXT DEFAULT 'pending',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     conn.commit()
     conn.close()
 

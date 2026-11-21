@@ -43,6 +43,61 @@ export async function startWebServer(client, getGuild) {
     res.json({ ok: true });
   });
 
+  app.get("/api/recruitment", (req, res) => {
+    const db = getDb();
+    const guild = getGuild();
+    const roles = guild
+      ? [...guild.roles.cache.values()]
+          .filter(role => role.id !== guild.id)
+          .sort((a, b) => b.position - a.position)
+          .map(role => ({ id: role.id, name: role.name }))
+      : [];
+    const positions = db.prepare("SELECT role_id, name, description, active, sort_order FROM recruitment_positions ORDER BY sort_order, name").all();
+    const applications = db.prepare("SELECT id, applicant_id, position_name, answers, status, created_at FROM recruitment_applications ORDER BY id DESC LIMIT 100").all();
+    const settings = db.prepare(
+      "SELECT key, value FROM settings WHERE key IN ('recruitment_channel_id','recruitment_review_channel_id','recruitment_review_support_channel_id','recruitment_review_moderator_channel_id')"
+    ).all();
+    res.json({
+      roles,
+      positions,
+      applications,
+      settings: Object.fromEntries(settings.map(row => [row.key, row.value])),
+    });
+  });
+
+  app.post("/api/recruitment/positions", (req, res) => {
+    try {
+      const db = getDb();
+      const positions = Array.isArray(req.body.positions) ? req.body.positions : [];
+      db.prepare("DELETE FROM recruitment_positions").run();
+      const insert = db.prepare(`
+        INSERT INTO recruitment_positions (role_id, name, description, active, sort_order)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+      positions.forEach((position, index) => {
+        if (!position.role_id || !String(position.name || "").trim()) return;
+        insert.run(
+          String(position.role_id),
+          String(position.name).trim(),
+          String(position.description || "").trim(),
+          position.active === false ? 0 : 1,
+          Number.isFinite(position.sort_order) ? position.sort_order : index,
+        );
+      });
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/recruitment/application/:id", (req, res) => {
+    const allowed = ["pending", "approved", "rejected"];
+    const status = String(req.body.status || "");
+    if (!allowed.includes(status)) return res.status(400).json({ error: "Недопустимый статус" });
+    getDb().prepare("UPDATE recruitment_applications SET status=? WHERE id=?").run(status, req.params.id);
+    res.json({ ok: true });
+  });
+
   // Роли и привязка команд
   app.get("/api/role-manager", (req, res) => {
     const guild = getGuild();

@@ -24,6 +24,7 @@
     <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="logs">📜 Логи</a>
     <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="aichat">💬 AI-чат</a>
     <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="roles">🛡️ Роли и команды</a>
+    <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="recruitment">📨 Набор персонала</a>
     <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="settings">⚙️ Настройки</a>
   </nav>
 </aside>
@@ -90,6 +91,45 @@
           <tbody id="role-manager-rows"></tbody>
         </table>
         <button type="button" onclick="saveRoleManager()" class="mt-4 bg-green-700 hover:bg-green-600 px-3 py-2 rounded">Сохранить роли и команды</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- НАБОР ПЕРСОНАЛА -->
+  <section id="tab-recruitment" class="tab-content hidden">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-2xl font-bold">Набор персонала</h2>
+      <button type="button" onclick="addRecruitmentPosition()" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg text-sm">+ Направление</button>
+    </div>
+    <div class="max-w-5xl space-y-4">
+      <div class="bg-gray-800 p-4 rounded-xl space-y-3 text-sm">
+        <h3 class="font-semibold">Каналы набора</h3>
+        <div class="grid md:grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-gray-400">Канал публикации заявки</label>
+            <input id="recruitment-channel" type="text" class="w-full bg-gray-900 rounded px-3 py-2 mt-1" placeholder="ID канала">
+          </div>
+          <div>
+            <label class="text-xs text-gray-400">Заявки на саппорта</label>
+            <input id="recruitment-review-support-channel" type="text" class="w-full bg-gray-900 rounded px-3 py-2 mt-1" placeholder="ID канала">
+          </div>
+          <div>
+            <label class="text-xs text-gray-400">Заявки на модератора</label>
+            <input id="recruitment-review-moderator-channel" type="text" class="w-full bg-gray-900 rounded px-3 py-2 mt-1" placeholder="ID канала">
+          </div>
+        </div>
+        <button type="button" onclick="saveRecruitmentChannels()" class="bg-green-700 hover:bg-green-600 px-3 py-2 rounded">Сохранить каналы</button>
+      </div>
+
+      <div class="bg-gray-800 p-4 rounded-xl space-y-3 text-sm">
+        <h3 class="font-semibold">Открытые направления</h3>
+        <div id="recruitment-positions" class="space-y-2"></div>
+        <button type="button" onclick="saveRecruitmentPositions()" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded">Сохранить направления</button>
+      </div>
+
+      <div class="bg-gray-800 p-4 rounded-xl text-sm">
+        <h3 class="font-semibold mb-3">Последние заявки</h3>
+        <div id="recruitment-applications" class="space-y-2"></div>
       </div>
     </div>
   </section>
@@ -170,6 +210,7 @@
       if (item.dataset.tab === 'modules') loadModules();
       if (item.dataset.tab === 'bots') loadBots();
       if (item.dataset.tab === 'roles') loadRoleManager();
+      if (item.dataset.tab === 'recruitment') loadRecruitment();
       if (item.dataset.tab === 'settings') loadSettings();
     });
   });
@@ -322,6 +363,7 @@
       ['staf_stats', '/staf_stats'],
       ['top_veref', '/top_veref'],
       ['stafftable', '/stafftable'],
+      ['recruit_post', '/recruit_post'],
     ];
 
     document.getElementById('role-categories').innerHTML = categories.map((category, index) => `
@@ -401,6 +443,138 @@
       await loadRoleManager();
       alert('Роли и привязка команд сохранены');
     }
+  }
+
+  let recruitmentData = null;
+
+  async function loadRecruitment() {
+    const res = await fetch('/api/recruitment');
+    recruitmentData = await res.json();
+    document.getElementById('recruitment-channel').value =
+      recruitmentData.settings.recruitment_channel_id || '1572636867046670487';
+    document.getElementById('recruitment-review-support-channel').value =
+      recruitmentData.settings.recruitment_review_support_channel_id || '1572636866681901071';
+    document.getElementById('recruitment-review-moderator-channel').value =
+      recruitmentData.settings.recruitment_review_moderator_channel_id || '1572636866681901069';
+    renderRecruitmentPositions();
+    renderRecruitmentApplications();
+  }
+
+  function renderRecruitmentPositions() {
+    if (!recruitmentData) return;
+    const roleOptions = recruitmentData.roles.map(role =>
+      `<option value="${escapeHtml(role.id)}">${escapeHtml(role.name)}</option>`
+    ).join('');
+
+    document.getElementById('recruitment-positions').innerHTML =
+      recruitmentData.positions.map((position, index) => `
+        <div class="grid md:grid-cols-[180px_1fr_1fr_auto_auto] gap-2 items-center" data-position-index="${index}">
+          <select data-position-role class="bg-gray-900 rounded px-2 py-2">
+            ${roleOptions}
+          </select>
+          <input type="text" value="${escapeHtml(position.name)}" data-position-name
+            class="bg-gray-900 rounded px-3 py-2" placeholder="Название направления">
+          <input type="text" value="${escapeHtml(position.description)}" data-position-description
+            class="bg-gray-900 rounded px-3 py-2" placeholder="Краткое описание">
+          <label class="flex items-center gap-2"><input type="checkbox" data-position-active ${position.active ? 'checked' : ''}> Активно</label>
+          <button type="button" onclick="removeRecruitmentPosition(${index})" class="text-red-400">Удалить</button>
+        </div>
+      `).join('') || '<div class="text-gray-500">Нет направлений набора</div>';
+
+    document.querySelectorAll('[data-position-index]').forEach(element => {
+      const position = recruitmentData.positions[Number(element.dataset.positionIndex)];
+      if (position) element.querySelector('[data-position-role]').value = position.role_id;
+    });
+  }
+
+  function addRecruitmentPosition() {
+    if (!recruitmentData) {
+      loadRecruitment().then(() => addRecruitmentPosition());
+      return;
+    }
+    recruitmentData.positions.push({
+      role_id: recruitmentData.roles[0]?.id || '',
+      name: '',
+      description: '',
+      active: 1,
+      sort_order: recruitmentData.positions.length,
+    });
+    renderRecruitmentPositions();
+  }
+
+  function removeRecruitmentPosition(index) {
+    recruitmentData.positions.splice(index, 1);
+    renderRecruitmentPositions();
+  }
+
+  async function saveRecruitmentChannels() {
+    await fetch('/api/settings', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        recruitment_channel_id: document.getElementById('recruitment-channel').value.trim(),
+        recruitment_review_support_channel_id: document.getElementById('recruitment-review-support-channel').value.trim(),
+        recruitment_review_moderator_channel_id: document.getElementById('recruitment-review-moderator-channel').value.trim(),
+      }),
+    });
+    alert('Каналы набора сохранены');
+  }
+
+  async function saveRecruitmentPositions() {
+    const positions = [...document.querySelectorAll('[data-position-index]')].map((element, index) => ({
+      role_id: element.querySelector('[data-position-role]').value,
+      name: element.querySelector('[data-position-name]').value.trim(),
+      description: element.querySelector('[data-position-description]').value.trim(),
+      active: element.querySelector('[data-position-active]').checked,
+      sort_order: index,
+    })).filter(position => position.role_id && position.name);
+
+    const res = await fetch('/api/recruitment/positions', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ positions }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || 'Не удалось сохранить направления');
+      return;
+    }
+    await loadRecruitment();
+    alert('Направления набора сохранены');
+  }
+
+  function renderRecruitmentApplications() {
+    if (!recruitmentData) return;
+    const applications = recruitmentData.applications;
+    document.getElementById('recruitment-applications').innerHTML =
+      applications.map(application => {
+        let answers = {};
+        try { answers = JSON.parse(application.answers || '{}'); } catch {}
+        const answerText = Object.entries(answers).map(([question, answer]) =>
+          `<div><span class="text-gray-400">${escapeHtml(question)}:</span> ${escapeHtml(answer)}</div>`
+        ).join('');
+        return `
+          <div class="border border-gray-700 rounded-lg p-3">
+            <div class="flex justify-between gap-3">
+              <div><b>${escapeHtml(application.position_name)}</b><br><span class="text-xs text-gray-400">Пользователь: ${escapeHtml(application.applicant_id)} • ${escapeHtml(application.created_at)}</span></div>
+              <select onchange="setRecruitmentApplicationStatus(${application.id}, this.value)" class="bg-gray-900 rounded px-2 h-9">
+                <option value="pending" ${application.status === 'pending' ? 'selected' : ''}>На рассмотрении</option>
+                <option value="approved" ${application.status === 'approved' ? 'selected' : ''}>Одобрена</option>
+                <option value="rejected" ${application.status === 'rejected' ? 'selected' : ''}>Отклонена</option>
+              </select>
+            </div>
+            <div class="mt-2 space-y-1">${answerText || '<span class="text-gray-500">Ответы отсутствуют</span>'}</div>
+          </div>
+        `;
+      }).join('') || '<div class="text-gray-500">Заявок пока нет</div>';
+  }
+
+  async function setRecruitmentApplicationStatus(id, status) {
+    await fetch(`/api/recruitment/application/${id}`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ status }),
+    });
   }
 
   async function saveSettings() {

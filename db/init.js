@@ -74,8 +74,8 @@ export function getDb() {
   const categoryPermissions = [
     ["owner", "verf"], ["owner", "achen"], ["owner", "clear"],
     ["owner", "staf_profile"], ["owner", "staf_stats"], ["owner", "top_veref"],
-    ["owner", "stafftable"],
-    ["staff", "staf_profile"], ["staff", "staf_stats"], ["staff", "top_veref"], ["staff", "stafftable"],
+    ["owner", "stafftable"], ["owner", "recruit_post"],
+    ["staff", "staf_profile"], ["staff", "staf_stats"], ["staff", "top_veref"], ["staff", "stafftable"], ["staff", "recruit_post"],
     ["support", "verf"],
     ["moderator", "achen"], ["moderator", "clear"],
   ];
@@ -84,6 +84,28 @@ export function getDb() {
     VALUES (?, ?)
   `);
   for (const permission of categoryPermissions) insertCategoryPermission.run(...permission);
+
+  const seedPositions = [
+    ["1572636865448775816", "Support", "Помощь участникам и верификация"],
+    ["1572636865448775818", "Moderator", "Модерация сервера и голосовых каналов"],
+  ];
+  const insertPosition = db.prepare(`
+    INSERT OR IGNORE INTO recruitment_positions (role_id, name, description, active, sort_order)
+    VALUES (?, ?, ?, 1, ?)
+  `);
+  seedPositions.forEach((position, index) => insertPosition.run(position[0], position[1], position[2], index));
+
+  const recruitSettings = [
+    ["recruitment_channel_id", "1572636867046670487"],
+    ["recruitment_review_support_channel_id", "1572636866681901071"],
+    ["recruitment_review_moderator_channel_id", "1572636866681901069"],
+  ];
+  const insertSetting = db.prepare(`
+    INSERT INTO settings (key, value)
+    VALUES (?, ?)
+    ON CONFLICT(key) DO NOTHING
+  `);
+  recruitSettings.forEach(setting => insertSetting.run(setting[0], setting[1]));
 
   return db;
 }
