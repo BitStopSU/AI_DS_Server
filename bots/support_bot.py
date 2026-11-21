@@ -18,7 +18,6 @@ class Bot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.none()
         intents.guilds = True
-        intents.members = True
         super().__init__(command_prefix="!", intents=intents)
     async def setup_hook(self):
         await self.tree.sync()
