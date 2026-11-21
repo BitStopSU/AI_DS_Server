@@ -17,8 +17,31 @@ console.log = function(...args) {
   logStream.write(`[${new Date().toLocaleTimeString()}] ${args.join(' ')}\n`);
 };
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
+const UNVERIFY_ROLE_ID = "1572636865390051351";
+
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
+});
 const getGuild = () => client.guilds.cache.get(CONFIG.GUILD_ID);
+
+client.on(Events.GuildMemberAdd, async (member) => {
+  if (member.user.bot) return;
+  const role = member.guild.roles.cache.get(UNVERIFY_ROLE_ID);
+  if (!role) {
+    console.error(`Роль unverify ${UNVERIFY_ROLE_ID} не найдена`);
+    return;
+  }
+  try {
+    await member.roles.add(role, "Автоматическая выдача unverify до прохождения верификации");
+  } catch (error) {
+    console.error(`Не удалось выдать unverify участнику ${member.id}:`, error.message);
+  }
+});
 
 client.once(Events.ClientReady, async (c) => {
   console.log("✅ Бот:", c.user.tag); 
