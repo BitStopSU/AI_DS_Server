@@ -93,6 +93,7 @@ class RecruitmentPositionSelect(discord.ui.Select):
             min_values=1,
             max_values=1,
             options=options or [discord.SelectOption(label="Нет открытых направлений", value="none")],
+            custom_id="recruitment_position_select",
         )
         self.positions = {position["role_id"]: position for position in positions}
 
