@@ -17,7 +17,9 @@ if not TOKEN:
 
 class Bot(commands.Bot):
     def __init__(self):
-        super().__init__(command_prefix="!", intents=discord.Intents.all())
+        intents = discord.Intents.none()
+        intents.guilds = True
+        super().__init__(command_prefix="!", intents=intents)
     async def setup_hook(self):
         await self.tree.sync()
         track_voice_time.start()
@@ -61,13 +63,28 @@ def log_to_db(guild_id, user_id, mod_id, ptype, reason):
 
 @tasks.loop(minutes=1)
 async def track_voice_time():
-    channel = bot.get_channel(VOICE_MOD_TIME)
-    if not channel: return
+    channel_or_category = bot.get_channel(VOICE_MOD_TIME)
+    if not channel_or_category:
+        return
+
+    if isinstance(channel_or_category, discord.CategoryChannel):
+        voice_channels = list(channel_or_category.voice_channels)
+    elif hasattr(channel_or_category, "members"):
+        voice_channels = [channel_or_category]
+    else:
+        voice_channels = []
+
     conn = database.get_db(); c = conn.cursor()
-    for member in channel.members:
-        if member.bot: continue
-        if any(r.id == ROLE_MODERATOR for r in member.roles):
-            c.execute("INSERT INTO mod_voice_time (user_id, guild_id, seconds) VALUES (?, ?, 60) ON CONFLICT(user_id, guild_id) DO UPDATE SET seconds = seconds + 60", (member.id, member.guild.id))
+    for voice_channel in voice_channels:
+        for member in getattr(voice_channel, "members", []):
+            if member.bot:
+                continue
+            if any(r.id in (ROLE_MODERATOR, ROLE_OWNER) for r in member.roles):
+                c.execute(
+                    "INSERT INTO mod_voice_time (user_id, guild_id, seconds) VALUES (?, ?, 60) "
+                    "ON CONFLICT(user_id, guild_id) DO UPDATE SET seconds = seconds + 60",
+                    (member.id, member.guild.id),
+                )
     conn.commit(); conn.close()
 
 @track_voice_time.before_loop

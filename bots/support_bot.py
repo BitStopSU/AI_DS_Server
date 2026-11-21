@@ -16,7 +16,9 @@ if not TOKEN:
 
 class Bot(commands.Bot):
     def __init__(self):
-        super().__init__(command_prefix="!", intents=discord.Intents.all())
+        intents = discord.Intents.none()
+        intents.guilds = True
+        super().__init__(command_prefix="!", intents=intents)
     async def setup_hook(self):
         await self.tree.sync()
         track_support_voice_time.start()
