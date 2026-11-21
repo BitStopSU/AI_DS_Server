@@ -23,17 +23,25 @@ const getGuild = () => client.guilds.cache.get(CONFIG.GUILD_ID);
 client.once(Events.ClientReady, async (c) => {
   console.log("✅ Бот:", c.user.tag); 
   await loadModules();
+  for (const moduleInfo of getAllModules()) {
+    if (!moduleInfo.enabled) continue;
+    const mod = getModule(moduleInfo.id);
+    if (mod?.startScheduler) mod.startScheduler(c);
+  }
   
   // Настройки по умолчанию (создаются, если их нет в базе)
   const defaults = { 
     request_channel_id: "1572665127528960142", 
-    log_channel_id: "1572665336938102894", 
+    log_channel_id: "1572636868321873942", 
     allowed_role_id: "1572638729879945216",
     default_provider: "openai" 
   };
   
   for (const [k, v] of Object.entries(defaults)) { 
     if (v && !getSetting(k)) setSetting(k, v); 
+  }
+  if (getSetting("log_channel_id") === "1572665336938102894") {
+    setSetting("log_channel_id", "1572636868321873942");
   }
   
   // Автозапуск ботов, у которых стоит галочка

@@ -25,6 +25,7 @@
     <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="aichat">💬 AI-чат</a>
     <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="roles">🛡️ Роли и команды</a>
     <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="recruitment">📨 Набор персонала</a>
+    <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="holidays">🎉 Праздники</a>
     <a href="#" class="sidebar-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800" data-tab="settings">⚙️ Настройки</a>
   </nav>
 </aside>
@@ -34,6 +35,25 @@
   <section id="tab-modules" class="tab-content">
     <h2 class="text-2xl font-bold mb-6">Модули</h2>
     <div class="grid gap-4 max-w-3xl" id="modules-container"></div>
+  </section>
+
+  <!-- ПРАЗДНИКИ -->
+  <section id="tab-holidays" class="tab-content hidden">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-2xl font-bold">Праздничное оформление</h2>
+      <button type="button" onclick="restoreHolidayNames()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm">Вернуть обычные имена</button>
+    </div>
+    <div class="max-w-4xl space-y-4">
+      <div class="bg-gray-800 p-4 rounded-xl">
+        <h3 class="font-semibold mb-2">Категории</h3>
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="bg-gray-900 px-3 py-2 rounded">1572636867587874995</span>
+          <span class="bg-gray-900 px-3 py-2 rounded">1572636867789193326</span>
+        </div>
+      </div>
+      <div id="holiday-presets" class="grid md:grid-cols-2 gap-3"></div>
+      <div id="holiday-status" class="text-sm text-gray-400"></div>
+    </div>
   </section>
 
   <!-- БОТЫ -->
@@ -211,6 +231,7 @@
       if (item.dataset.tab === 'bots') loadBots();
       if (item.dataset.tab === 'roles') loadRoleManager();
       if (item.dataset.tab === 'recruitment') loadRecruitment();
+      if (item.dataset.tab === 'holidays') loadHolidays();
       if (item.dataset.tab === 'settings') loadSettings();
     });
   });
@@ -575,6 +596,44 @@
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ status }),
     });
+  }
+
+  async function loadHolidays() {
+    const res = await fetch('/api/holidays');
+    if (!res.ok) {
+      document.getElementById('holiday-presets').innerHTML =
+        '<div class="text-red-400">Модуль праздников не загружен</div>';
+      return;
+    }
+    const data = await res.json();
+    document.getElementById('holiday-presets').innerHTML = data.presets.map(preset => `
+      <button type="button" onclick="applyHoliday('${preset.id}')"
+        class="${data.status.activePreset === preset.id ? 'border-indigo-500' : 'border-gray-700'} bg-gray-800 border rounded-xl p-4 text-left hover:bg-gray-750">
+        <span class="block font-semibold">${preset.name}</span>
+      </button>
+    `).join('');
+    document.getElementById('holiday-status').innerText =
+      `Активно: ${data.presets.find(preset => preset.id === data.status.activePreset)?.name || 'Обычный вид'}`;
+  }
+
+  async function applyHoliday(presetId) {
+    const res = await fetch(`/api/holidays/${presetId}/apply`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      alert(data.error || 'Не удалось применить оформление');
+      return;
+    }
+    await loadHolidays();
+  }
+
+  async function restoreHolidayNames() {
+    const res = await fetch('/api/holidays/restore', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      alert(data.error || 'Не удалось восстановить имена');
+      return;
+    }
+    await loadHolidays();
   }
 
   async function saveSettings() {

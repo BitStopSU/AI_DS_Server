@@ -4,7 +4,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import multer from "multer";
-import { getAllModules, setEnabled } from "../core/module-manager.js";
+import { getAllModules, getModule, setEnabled } from "../core/module-manager.js";
 import { getDb } from "../db/init.js";
 import * as processManager from "../core/process-manager.js";
 import { encrypt } from "../core/crypto.js";
@@ -31,6 +31,36 @@ export async function startWebServer(client, getGuild) {
   // МОДУЛИ
   app.get("/api/modules", (req, res) => res.json(getAllModules()));
   app.post("/api/modules/:id", (req, res) => { setEnabled(req.params.id, !!req.body.enabled); res.json({ ok: true }); });
+
+  app.get("/api/holidays", (req, res) => {
+    const decorator = getModule("holiday-decorator");
+    if (!decorator) return res.status(404).json({ error: "Модуль праздников не загружен" });
+    res.json({ presets: decorator.getPresets(), status: decorator.getStatus() });
+  });
+
+  app.post("/api/holidays/:preset/apply", async (req, res) => {
+    const decorator = getModule("holiday-decorator");
+    if (!decorator) return res.status(404).json({ error: "Модуль праздников не загружен" });
+    const guild = getGuild();
+    if (!guild) return res.status(400).json({ error: "Гильдия Discord не найдена" });
+    try {
+      res.json(await decorator.apply(guild, req.params.preset));
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/holidays/restore", async (req, res) => {
+    const decorator = getModule("holiday-decorator");
+    if (!decorator) return res.status(404).json({ error: "Модуль праздников не загружен" });
+    const guild = getGuild();
+    if (!guild) return res.status(400).json({ error: "Гильдия Discord не найдена" });
+    try {
+      res.json(await decorator.restore(guild));
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 
   // НАСТРОЙКИ
   app.get("/api/settings", (req, res) => {

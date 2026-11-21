@@ -3,7 +3,7 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 function getGuild() { return client.guilds.cache.get(CONFIG.GUILD_ID); }
 client.once(Events.ClientReady, async (c) => {
   console.log("✅ Бот:", c.user.tag); await loadModules();
-  const defaults = { request_channel_id: "1572665127528960142", log_channel_id: "1572665336938102894", allowed_role_id: "1572638729879945216", default_provider: CONFIG.DEFAULT_PROVIDER };
+  const defaults = { request_channel_id: "1572665127528960142", log_channel_id: "1572636868321873942", allowed_role_id: "1572638729879945216", default_provider: CONFIG.DEFAULT_PROVIDER };
   for (const [k, v] of Object.entries(defaults)) { if (v && !getSetting(k)) setSetting(k, v); }
   await autoStartAll(); startWatchdog(() => {});
   await startWebServer(client, getGuild);
