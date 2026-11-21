@@ -49,6 +49,22 @@ ANTHROPIC_API_KEY=
 OPENAI_API_KEY=
 ```
 
+Если при установке Python-пакетов появляется ошибка `externally-managed-environment`, используйте виртуальное окружение:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+Для запуска ботов менеджер может вызывать системный `python`. Если используется виртуальное окружение, активируйте его перед запуском панели:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+npm start
+```
+
 В Discord Developer Portal включите для ботов, которым нужны участники и роли:
 
 - `Server Members Intent`
