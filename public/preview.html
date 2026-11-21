@@ -389,6 +389,14 @@
 
     document.getElementById('role-categories').innerHTML = categories.map((category, index) => `
       <div class="flex flex-wrap items-center gap-3" data-category-id="${escapeHtml(category.id)}">
+        <div class="flex flex-col">
+          <button type="button" onclick="moveRoleCategory('${escapeHtml(category.id)}', -1)"
+            class="text-gray-300 hover:text-white disabled:text-gray-600 px-2 leading-4"
+            ${index === 0 ? 'disabled' : ''} title="Выше">▲</button>
+          <button type="button" onclick="moveRoleCategory('${escapeHtml(category.id)}', 1)"
+            class="text-gray-300 hover:text-white disabled:text-gray-600 px-2 leading-4"
+            ${index === categories.length - 1 ? 'disabled' : ''} title="Ниже">▼</button>
+        </div>
         <input type="text" value="${escapeHtml(category.name)}" data-category-name
           class="w-48 bg-gray-900 rounded px-3 py-2" placeholder="Название категории">
         <div class="flex flex-wrap gap-3">
@@ -426,6 +434,16 @@
 
   function removeRoleCategory(id) {
     roleManagerData.categories = roleManagerData.categories.filter(category => category.id !== id);
+    renderRoleManager();
+  }
+
+  function moveRoleCategory(id, direction) {
+    const categories = roleManagerData.categories;
+    const index = categories.findIndex(category => category.id === id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= categories.length) return;
+    [categories[index], categories[target]] = [categories[target], categories[index]];
+    categories.forEach((category, position) => category.sort_order = position);
     renderRoleManager();
   }
 
