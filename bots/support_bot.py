@@ -18,6 +18,7 @@ class Bot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.none()
         intents.guilds = True
+        intents.members = True
         super().__init__(command_prefix="!", intents=intents)
     async def setup_hook(self):
         await self.tree.sync()
@@ -46,6 +47,24 @@ def has_staff(member):
 
 def allowed_channel(interaction):
     return interaction.channel_id in CHANNELS_ALLOWED or has_support(interaction.user) or has_staff(interaction.user)
+
+@bot.event
+async def on_member_join(member):
+    if member.bot:
+        return
+    unverified_role = member.guild.get_role(ROLE_UNVERIFY)
+    if not unverified_role:
+        print(f"[support] Роль непроверенного пользователя {ROLE_UNVERIFY} не найдена")
+        return
+    try:
+        await member.add_roles(
+            unverified_role,
+            reason="Автоматическая выдача роли до прохождения верификации",
+        )
+    except discord.Forbidden:
+        print(f"[support] Нет прав выдать роль {ROLE_UNVERIFY} участнику {member.id}")
+    except discord.HTTPException as error:
+        print(f"[support] Не удалось выдать роль участнику {member.id}: {error}")
 
 def recruitment_db_path():
     return os.path.join(os.getcwd(), "data.db")
