@@ -12,6 +12,21 @@
   .toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; background: white; border-radius: 50%; transition: .2s; }
   .toggle.on::after { left: 23px; }
   .log-window { font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; }
+  :root { color-scheme: dark; --accent: #8b7cff; }
+  body { background: radial-gradient(ellipse at 72% -8%, rgba(91,72,190,.22), transparent 42%), #0b0f19; }
+  aside { background: rgba(7,10,18,.96) !important; border-color: rgba(148,163,184,.12) !important; }
+  .sidebar-item { transition: background .18s ease, color .18s ease, transform .18s ease; }
+  .sidebar-item:hover { transform: translateX(2px); }
+  .sidebar-item.active { background: linear-gradient(110deg,#6554e8,#8b5cf6); box-shadow: 0 8px 24px rgba(106,82,235,.24); }
+  .tab-content:not(.hidden) { animation: panel-in .22s ease-out; }
+  @keyframes panel-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+  input,select,textarea { border: 1px solid rgba(148,163,184,.14); transition: border-color .16s,box-shadow .16s; }
+  input:focus,select:focus,textarea:focus { outline: none; border-color: #8b7cff; box-shadow: 0 0 0 3px rgba(139,124,255,.16); }
+  button { transition: filter .16s,transform .16s,box-shadow .16s; }
+  button:hover { filter: brightness(1.12); }
+  button:active { transform: translateY(1px); }
+  .bg-gray-800.rounded-xl,.bg-gray-800.p-4.rounded-xl { background: linear-gradient(145deg,rgba(31,39,57,.94),rgba(18,24,37,.96)) !important; border: 1px solid rgba(148,163,184,.12); box-shadow: 0 14px 38px rgba(0,0,0,.16); }
+  @media (max-width:760px) { body { display:block !important; } aside { width:100% !important; min-height:auto !important; } aside nav { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); } main { padding:1rem !important; } }
 </style>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen flex">
@@ -138,6 +153,10 @@
             <input id="recruitment-review-moderator-channel" type="text" class="w-full bg-gray-900 rounded px-3 py-2 mt-1" placeholder="ID канала">
           </div>
         </div>
+          <div class="md:col-span-2">
+            <label class="text-xs text-gray-400">URL баннера набора</label>
+            <input id="recruitment-banner-url" type="url" class="w-full bg-gray-900 rounded px-3 py-2 mt-1" placeholder="https://example.com/banner.png">
+          </div>
         <button type="button" onclick="saveRecruitmentChannels()" class="bg-green-700 hover:bg-green-600 px-3 py-2 rounded">Сохранить каналы</button>
       </div>
 
@@ -495,6 +514,7 @@
       recruitmentData.settings.recruitment_review_support_channel_id || '1572636866681901071';
     document.getElementById('recruitment-review-moderator-channel').value =
       recruitmentData.settings.recruitment_review_moderator_channel_id || '1572636866681901069';
+    document.getElementById('recruitment-banner-url').value = recruitmentData.settings.recruitment_banner_url || '';
     renderRecruitmentPositions();
     renderRecruitmentApplications();
   }
@@ -554,6 +574,7 @@
         recruitment_channel_id: document.getElementById('recruitment-channel').value.trim(),
         recruitment_review_support_channel_id: document.getElementById('recruitment-review-support-channel').value.trim(),
         recruitment_review_moderator_channel_id: document.getElementById('recruitment-review-moderator-channel').value.trim(),
+        recruitment_banner_url: document.getElementById('recruitment-banner-url').value.trim(),
       }),
     });
     alert('Каналы набора сохранены');

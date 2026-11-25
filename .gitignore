@@ -7,3 +7,6 @@ shared_bot_data.db-*
 backups/
 logs/
 credentials/
+modules/.venv/
+__pycache__/
+*.py[cod]

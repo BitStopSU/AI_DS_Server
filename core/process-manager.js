@@ -14,7 +14,7 @@ export async function startBot(botId) {
   if (!bot) throw new Error("Бот не найден в БД");
   if (processes.has(botId)) return { ok: false, reason: "Уже запущен" };
 
-  const envTokenNames = { support: "SUPPORT_BOT_TOKEN", mod: "MOD_BOT_TOKEN" };
+  const envTokenNames = { support: "SUPPORT_BOT_TOKEN", mod: "MOD_BOT_TOKEN", economy: "ECONOMY_BOT_TOKEN", creative: "CREATIVE_BOT_TOKEN" };
   const envToken = process.env[envTokenNames[botId]];
   const token = bot.token_encrypted ? decrypt(bot.token_encrypted) : envToken;
   if (!token) {
@@ -31,7 +31,7 @@ export async function startBot(botId) {
   });
 
   processes.set(botId, { child, pid: child.pid });
-  db.prepare("UPDATE bots SET status='running', pid=?, last_error=NULL WHERE id=?").run(child.pid, botId);
+  db.prepare("UPDATE bots SET status='running', pid=?, last_heartbeat=NULL, last_error=NULL WHERE id=?").run(child.pid, botId);
 
   const stream = fs.createWriteStream(path.join(LOGS_DIR, `${botId}.log`), { flags: "a" });
   child.stdout.pipe(stream);

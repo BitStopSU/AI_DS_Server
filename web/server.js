@@ -85,7 +85,7 @@ export async function startWebServer(client, getGuild) {
     const positions = db.prepare("SELECT role_id, name, description, active, sort_order FROM recruitment_positions ORDER BY sort_order, name").all();
     const applications = db.prepare("SELECT id, applicant_id, position_name, answers, status, created_at FROM recruitment_applications ORDER BY id DESC LIMIT 100").all();
     const settings = db.prepare(
-      "SELECT key, value FROM settings WHERE key IN ('recruitment_channel_id','recruitment_review_channel_id','recruitment_review_support_channel_id','recruitment_review_moderator_channel_id')"
+      "SELECT key, value FROM settings WHERE key IN ('recruitment_channel_id','recruitment_review_channel_id','recruitment_review_support_channel_id','recruitment_review_moderator_channel_id','recruitment_banner_url')"
     ).all();
     res.json({
       roles,
@@ -256,5 +256,5 @@ export async function startWebServer(client, getGuild) {
     try { res.json(await webAi.webAiConfirm({ action: req.body.action, args: req.body.args, guild })); } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  app.listen(CONFIG.PORT, () => console.log("🌐 Панель: http://localhost:" + CONFIG.PORT));
+  app.listen(CONFIG.PORT, "127.0.0.1", () => console.log("🌐 Панель: http://localhost:" + CONFIG.PORT));
 }

@@ -12,6 +12,8 @@ export function getDb() {
   const seedBots = [
     { id: "support", name: "Саппорт", script_path: "support_bot.py" },
     { id: "mod", name: "Модератор", script_path: "mod_bot.py" },
+    { id: "economy", name: "Экономика", script_path: "economy_bot.py" },
+    { id: "creative", name: "Креатив", script_path: "creative_bot.py" },
   ];
 
   const insertBot = db.prepare(`
@@ -24,6 +26,7 @@ export function getDb() {
   for (const bot of seedBots) {
     insertBot.run(bot.id, bot.name, bot.script_path);
   }
+  db.prepare("UPDATE bots SET auto_start = 0 WHERE id IN ('economy', 'creative')").run();
 
   const seedCategories = [
     { id: "owner", name: "Владельцы", sort_order: 0 },
@@ -99,6 +102,7 @@ export function getDb() {
     ["recruitment_channel_id", "1572636867046670487"],
     ["recruitment_review_support_channel_id", "1572636866681901071"],
     ["recruitment_review_moderator_channel_id", "1572636866681901069"],
+    ["recruitment_banner_url", ""],
   ];
   const insertSetting = db.prepare(`
     INSERT INTO settings (key, value)

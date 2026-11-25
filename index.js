@@ -29,6 +29,9 @@ const client = new Client({
 });
 const getGuild = () => client.guilds.cache.get(CONFIG.GUILD_ID);
 
+// Keep the local dashboard available even when Discord login is unavailable.
+await startWebServer(client, getGuild);
+
 client.on(Events.GuildMemberAdd, async (member) => {
   if (member.user.bot) return;
   const role = member.guild.roles.cache.get(UNVERIFY_ROLE_ID);
@@ -73,11 +76,10 @@ client.once(Events.ClientReady, async (c) => {
   // Запуск слежки за зависшими ботами
   startWatchdog((msg) => {
     const ch = getGuild()?.channels.cache.get(getSetting("log_channel_id"));
-    if (ch) ch.send(msg).catch(()=>{});
+    if (ch?.isTextBased?.() && typeof ch.send === "function") {
+      ch.send(msg).catch((error) => console.error("Watchdog notification failed:", error.message));
+    }
   });
-  
-  // Запуск веб-панели
-  await startWebServer(client, getGuild);
 });
 
 client.on(Events.MessageCreate, async (message) => {
