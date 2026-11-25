@@ -14,6 +14,7 @@ export function getDb() {
     { id: "mod", name: "Модератор", script_path: "mod_bot.py" },
     { id: "economy", name: "Экономика", script_path: "economy_bot.py" },
     { id: "creative", name: "Креатив", script_path: "creative_bot.py" },
+    { id: "tribunal", name: "Трибунал", script_path: "tribunal_bot.py" },
   ];
 
   const insertBot = db.prepare(`
@@ -26,7 +27,7 @@ export function getDb() {
   for (const bot of seedBots) {
     insertBot.run(bot.id, bot.name, bot.script_path);
   }
-  db.prepare("UPDATE bots SET auto_start = 0 WHERE id IN ('economy', 'creative')").run();
+  db.prepare("UPDATE bots SET auto_start = 0 WHERE id IN ('economy', 'creative', 'tribunal')").run();
 
   const seedCategories = [
     { id: "owner", name: "Владельцы", sort_order: 0 },

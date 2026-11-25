@@ -24,7 +24,6 @@ import aiohttp
 import sqlite3
 import json
 from support_features import register_support_commands
-from tribunal_features import register_tribunal_commands
 
 database.init_db()
 
@@ -142,10 +141,6 @@ def can_review(member):
     return any(role.id in (ROLE_OWNER, ROLE_STAFF) for role in member.roles)
 
 
-register_support_commands(bot, database, _config, can_staff, has_support, has_owner)
-register_tribunal_commands(bot, database, can_staff, has_owner)
-
-
 # --------------------------------------------------------------- утилиты
 def format_duration(seconds):
     seconds = int(seconds or 0)
@@ -162,6 +157,45 @@ async def try_dm(user, text):
         return False
 
 
+async def publish_recruitment(interaction, channel, positions):
+    if not positions:
+        return await interaction.response.send_message("Открытых вакансий нет.", ephemeral=True)
+
+    role_lines = []
+    for position in positions[:25]:
+        role = interaction.guild.get_role(int(position["role_id"]))
+        role_label = role.mention if role else f"**{discord.utils.escape_markdown(position['name'])}**"
+        role_lines.append(
+            f"🟣 {role_label} — "
+            f"{discord.utils.escape_markdown(position['description'] or 'Открытое направление')}"
+        )
+
+    embed = discord.Embed(
+        title="🚀 Набор в команду",
+        description=(
+            "Выбери роль в меню ниже, затем нажми «Подать заявку» и заполни анкету.\n\n"
+            + "\n".join(role_lines)
+        )[:4000],
+        color=discord.Color.from_rgb(124, 92, 255),
+    )
+    banner_url = recruitment_setting("recruitment_banner_url").strip()
+    if banner_url.startswith(("https://", "http://")):
+        embed.set_image(url=banner_url)
+        await channel.send(embed=embed, view=RecruitmentView(positions), allowed_mentions=discord.AllowedMentions(roles=False))
+    else:
+        banner_path = Path(__file__).resolve().parent.parent / "public" / "recruitment-banner.png"
+        embed.set_image(url="attachment://recruitment-banner.png")
+        await channel.send(
+            embed=embed,
+            view=RecruitmentView(positions),
+            file=discord.File(banner_path, filename="recruitment-banner.png"),
+            allowed_mentions=discord.AllowedMentions(roles=False),
+        )
+    return await interaction.response.send_message(
+        f"Интерактивный список ролей опубликован в {channel.mention}.", ephemeral=True
+    )
+
+
 async def send_log(guild, embed):
     channel_id = cfg("CHANNEL_SUPPORT_LOG")
     channel = guild.get_channel(channel_id) if channel_id else None
@@ -170,6 +204,9 @@ async def send_log(guild, embed):
             await channel.send(embed=embed)
         except discord.HTTPException:
             pass
+
+
+register_support_commands(bot, database, _config, can_staff, has_support, has_owner, publish_recruitment)
 
 
 # ------------------------------------------------------------------ набор
@@ -1057,36 +1094,7 @@ async def recruit_post(interaction: discord.Interaction):
         if configured_channel:
             target_channel = configured_channel
 
-    role_lines = []
-    for position in positions:
-        role = interaction.guild.get_role(int(position["role_id"]))
-        role_label = role.mention if role else f"**{discord.utils.escape_markdown(position['name'])}**"
-        description = discord.utils.escape_markdown(position["description"] or "Открыто направление")
-        role_lines.append(f"🟣 {role_label} — {description}")
-
-    description = (
-        "## ✨ Открыт набор в команду сервера\n"
-        "Хочешь присоединиться к команде? Выбери направление в меню и отправь заявку.\n\n"
-        + "\n".join(role_lines)
-        + "\n\n*Заявки рассматривает администрация сервера.*"
-    )
-    embed = discord.Embed(
-        title="🚀 Набор в команду",
-        description=description[:4000],
-        color=discord.Color.from_rgb(124, 92, 255),
-    )
-    banner_url = recruitment_setting("recruitment_banner_url").strip()
-    if banner_url.startswith(("https://", "http://")):
-        embed.set_image(url=banner_url)
-    else:
-        embed.set_image(url="attachment://recruitment-banner.png")
-    embed.set_footer(text="Выберите роль в меню ниже · Набор открыт")
-    if banner_url.startswith(("https://", "http://")):
-        await target_channel.send(embed=embed, view=RecruitmentView(positions), allowed_mentions=discord.AllowedMentions(roles=False))
-    else:
-        banner_path = Path(__file__).resolve().parent.parent / "public" / "recruitment-banner.png"
-        await target_channel.send(embed=embed, view=RecruitmentView(positions), file=discord.File(banner_path, filename="recruitment-banner.png"), allowed_mentions=discord.AllowedMentions(roles=False))
-    await interaction.response.send_message(f"Карточка набора опубликована в {target_channel.mention}.", ephemeral=True)
+    await publish_recruitment(interaction, target_channel, positions)
 
 
 # ------------------------------------------------------ верификация

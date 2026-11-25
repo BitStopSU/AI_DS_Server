@@ -9,7 +9,7 @@ import discord
 from discord import app_commands
 
 
-def register_support_commands(bot, database, config, can_staff, has_support, has_owner):
+def register_support_commands(bot, database, config, can_staff, has_support, has_owner, publish_recruitment=None):
     def connect():
         return database.get_db()
 
@@ -402,17 +402,7 @@ def register_support_commands(bot, database, config, can_staff, has_support, has
             banner=conn.execute("SELECT value FROM settings WHERE key='recruitment_banner_url'").fetchone()
         finally:
             conn.close()
-        if not positions:
-            return await interaction.response.send_message("Открытых вакансий нет.",ephemeral=True)
-        lines=[]
-        for role_id,name,description in positions:
-            role=interaction.guild.get_role(int(role_id))
-            mention=role.mention if role else f"**{discord.utils.escape_markdown(name)}**"
-            lines.append(f"🟣 {mention} — {discord.utils.escape_markdown(description or 'Открытое направление')}")
-        embed=discord.Embed(title="🚀 Набор в команду",description="Выбери направление в меню и отправь заявку.\n\n"+"\n".join(lines),color=discord.Color.from_rgb(124,92,255))
-        banner_url=banner[0].strip() if banner and banner[0] else ""
-        if banner_url.startswith(("https://","http://")):
-            embed.set_image(url=banner_url)
-        embed.set_footer(text="Выберите роль в меню ниже · Набор открыт")
-        await interaction.channel.send(embed=embed,allowed_mentions=discord.AllowedMentions(roles=False))
-        await interaction.response.send_message("Объявление набора отправлено в этот канал.",ephemeral=True)
+        if not publish_recruitment:
+            return await interaction.response.send_message("Обработчик заявок не подключён.",ephemeral=True)
+        positions=[{"role_id":row[0],"name":row[1],"description":row[2]} for row in positions]
+        return await publish_recruitment(interaction, interaction.channel, positions)

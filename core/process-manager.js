@@ -14,7 +14,7 @@ export async function startBot(botId) {
   if (!bot) throw new Error("Бот не найден в БД");
   if (processes.has(botId)) return { ok: false, reason: "Уже запущен" };
 
-  const envTokenNames = { support: "SUPPORT_BOT_TOKEN", mod: "MOD_BOT_TOKEN", economy: "ECONOMY_BOT_TOKEN", creative: "CREATIVE_BOT_TOKEN" };
+  const envTokenNames = { support: "SUPPORT_BOT_TOKEN", mod: "MOD_BOT_TOKEN", economy: "ECONOMY_BOT_TOKEN", creative: "CREATIVE_BOT_TOKEN", tribunal: "TRIBUNAL_BOT_TOKEN" };
   const envToken = process.env[envTokenNames[botId]];
   const token = bot.token_encrypted ? decrypt(bot.token_encrypted) : envToken;
   if (!token) {
